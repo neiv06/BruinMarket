@@ -68,6 +68,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 // Get all posts
 func getPosts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	
+	// Ensure we return an empty array instead of null when no posts exist
+	if posts == nil {
+		posts = []Post{}
+	}
+	
 	json.NewEncoder(w).Encode(posts)
 }
 

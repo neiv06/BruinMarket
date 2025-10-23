@@ -3,9 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -19,7 +23,10 @@ type Post struct {
 	Price       float64   `json:"price"`
 	Category    string    `json:"category"`
 	Type        string    `json:"type"` // "buy" or "sell"
+	Condition   string    `json:"condition"` // "New", "Used - Like New", "Used - Good", "Used - Fair"
 	Author      string    `json:"author"`
+	Images      []string  `json:"images"` // URLs to uploaded images
+	Videos      []string  `json:"videos"` // URLs to uploaded videos
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -29,6 +36,10 @@ var posts []Post
 var nextID = 1
 
 func main() {
+	// Create uploads directory if it doesn't exist
+	os.MkdirAll("uploads/images", 0755)
+	os.MkdirAll("uploads/videos", 0755)
+
 	r := mux.NewRouter()
 
 	// API routes
@@ -38,8 +49,15 @@ func main() {
 	api.HandleFunc("/posts/{id}", getPost).Methods("GET")
 	api.HandleFunc("/posts/{id}", updatePost).Methods("PUT")
 	api.HandleFunc("/posts/{id}", deletePost).Methods("DELETE")
+	
+	// File upload routes
+	api.HandleFunc("/upload/image", uploadImage).Methods("POST")
+	api.HandleFunc("/upload/video", uploadVideo).Methods("POST")
 
-	// Serve static files
+	// Serve uploaded files (must be before the catch-all route)
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads/"))))
+	
+	// Serve static files (must be last to avoid intercepting other routes)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../frontend/dist/")))
 
 	// CORS middleware
@@ -166,4 +184,102 @@ func deletePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "Post not found", http.StatusNotFound)
+}
+
+// Upload image handler
+func uploadImage(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart form with 10MB max memory
+	err := r.ParseMultipartForm(10 << 20) // 10MB
+	if err != nil {
+		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+		return
+	}
+
+	file, handler, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Check file type
+	contentType := handler.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		http.Error(w, "File must be an image", http.StatusBadRequest)
+		return
+	}
+
+	// Generate unique filename
+	filename := fmt.Sprintf("%d_%s", time.Now().Unix(), handler.Filename)
+	filepath := filepath.Join("uploads/images", filename)
+
+	// Create file
+	dst, err := os.Create(filepath)
+	if err != nil {
+		http.Error(w, "Error creating file", http.StatusInternalServerError)
+		return
+	}
+	defer dst.Close()
+
+	// Copy file
+	_, err = io.Copy(dst, file)
+	if err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+
+	// Return file URL
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"url": fmt.Sprintf("/uploads/images/%s", filename),
+	})
+}
+
+// Upload video handler
+func uploadVideo(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart form with 100MB max memory
+	err := r.ParseMultipartForm(100 << 20) // 100MB
+	if err != nil {
+		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+		return
+	}
+
+	file, handler, err := r.FormFile("video")
+	if err != nil {
+		http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Check file type
+	contentType := handler.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "video/") {
+		http.Error(w, "File must be a video", http.StatusBadRequest)
+		return
+	}
+
+	// Generate unique filename
+	filename := fmt.Sprintf("%d_%s", time.Now().Unix(), handler.Filename)
+	filepath := filepath.Join("uploads/videos", filename)
+
+	// Create file
+	dst, err := os.Create(filepath)
+	if err != nil {
+		http.Error(w, "Error creating file", http.StatusInternalServerError)
+		return
+	}
+	defer dst.Close()
+
+	// Copy file
+	_, err = io.Copy(dst, file)
+	if err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+
+	// Return file URL
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"url": fmt.Sprintf("/uploads/videos/%s", filename),
+	})
 }

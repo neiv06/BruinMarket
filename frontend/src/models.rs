@@ -9,7 +9,10 @@ pub struct Post {
     pub category: String,
     #[serde(rename = "type")]  // Map JSON "type" to "post_type"
     pub post_type: String,
+    pub condition: String,
     pub author: String,
+    pub images: Vec<String>,
+    pub videos: Vec<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -22,5 +25,8 @@ pub struct CreatePostRequest {
     pub category: String,
     #[serde(rename = "type")]  // Map JSON "type" to "post_type"
     pub post_type: String,
+    pub condition: String,
     pub author: String,
+    pub images: Vec<String>,
+    pub videos: Vec<String>,
 }

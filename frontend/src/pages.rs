@@ -11,7 +11,10 @@ pub fn create_post() -> Html {
     let price = use_state(|| String::new());
     let category = use_state(|| String::new());
     let post_type = use_state(|| "sell".to_string());
+    let condition = use_state(|| "New".to_string());
     let author = use_state(|| String::new());
+    let images = use_state(|| Vec::<String>::new());
+    let videos = use_state(|| Vec::<String>::new());
     let loading = use_state(|| false);
     let error = use_state(|| None::<String>);
     let success = use_state(|| false);
@@ -24,7 +27,10 @@ pub fn create_post() -> Html {
         let price = price.clone();
         let category = category.clone();
         let post_type = post_type.clone();
+        let condition = condition.clone();
         let author = author.clone();
+        let images = images.clone();
+        let videos = videos.clone();
         let loading = loading.clone();
         let error = error.clone();
         let success = success.clone();
@@ -34,7 +40,7 @@ pub fn create_post() -> Html {
             e.prevent_default();
             
             if title.is_empty() || description.is_empty() || price.is_empty() || 
-               category.is_empty() || author.is_empty() {
+               category.is_empty() || condition.is_empty() || author.is_empty() {
                 error.set(Some("All fields are required".to_string()));
                 return;
             }
@@ -57,7 +63,10 @@ pub fn create_post() -> Html {
                 price: price_value,
                 category: category.to_string(),
                 post_type: post_type.to_string(),
+                condition: condition.to_string(),
                 author: author.to_string(),
+                images: images.to_vec(),
+                videos: videos.to_vec(),
             };
 
             let callback = {
@@ -80,6 +89,90 @@ pub fn create_post() -> Html {
             };
 
             api.create_post(post, callback);
+        })
+    };
+
+    let on_image_upload = {
+        let images = images.clone();
+        let error = error.clone();
+        Callback::from(move |e: Event| {
+            if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                if let Some(file) = input.files().and_then(|files| files.get(0)) {
+                    let form_data = web_sys::FormData::new().unwrap();
+                    form_data.append_with_blob("image", &file).unwrap();
+                    
+                    let images_clone = images.clone();
+                    let error_clone = error.clone();
+                    
+                    wasm_bindgen_futures::spawn_local(async move {
+                        match Request::post("http://localhost:8080/api/upload/image")
+                            .body(&form_data)
+                            .send()
+                            .await
+                        {
+                            Ok(response) => {
+                                if response.ok() {
+                                    match response.json::<serde_json::Value>().await {
+                                        Ok(json) => {
+                                            if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
+                                                let mut current_images = images_clone.to_vec();
+                                                current_images.push(url.to_string());
+                                                images_clone.set(current_images);
+                                            }
+                                        }
+                                        Err(e) => error_clone.set(Some(format!("Failed to parse upload response: {}", e))),
+                                    }
+                                } else {
+                                    error_clone.set(Some("Failed to upload image".to_string()));
+                                }
+                            }
+                            Err(e) => error_clone.set(Some(format!("Upload failed: {}", e))),
+                        }
+                    });
+                }
+            }
+        })
+    };
+
+    let on_video_upload = {
+        let videos = videos.clone();
+        let error = error.clone();
+        Callback::from(move |e: Event| {
+            if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                if let Some(file) = input.files().and_then(|files| files.get(0)) {
+                    let form_data = web_sys::FormData::new().unwrap();
+                    form_data.append_with_blob("video", &file).unwrap();
+                    
+                    let videos_clone = videos.clone();
+                    let error_clone = error.clone();
+                    
+                    wasm_bindgen_futures::spawn_local(async move {
+                        match Request::post("http://localhost:8080/api/upload/video")
+                            .body(&form_data)
+                            .send()
+                            .await
+                        {
+                            Ok(response) => {
+                                if response.ok() {
+                                    match response.json::<serde_json::Value>().await {
+                                        Ok(json) => {
+                                            if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
+                                                let mut current_videos = videos_clone.to_vec();
+                                                current_videos.push(url.to_string());
+                                                videos_clone.set(current_videos);
+                                            }
+                                        }
+                                        Err(e) => error_clone.set(Some(format!("Failed to parse upload response: {}", e))),
+                                    }
+                                } else {
+                                    error_clone.set(Some("Failed to upload video".to_string()));
+                                }
+                            }
+                            Err(e) => error_clone.set(Some(format!("Upload failed: {}", e))),
+                        }
+                    });
+                }
+            }
         })
     };
 
@@ -200,6 +293,70 @@ pub fn create_post() -> Html {
                     </div>
 
                     <div class="form-group">
+                        <label for="condition">{ "Condition" }</label>
+                        <select
+                            id="condition"
+                            value={(*condition).clone()}
+                            onchange={Callback::from(move |e: Event| {
+                                if let Some(select) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                    condition.set(select.value());
+                                }
+                            })}
+                            required=true
+                        >
+                            <option value="New">{ "New" }</option>
+                            <option value="Used - Like New">{ "Used - Like New" }</option>
+                            <option value="Used - Good">{ "Used - Good" }</option>
+                            <option value="Used - Fair">{ "Used - Fair" }</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>{ "Images" }</label>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple=true
+                            onchange={on_image_upload}
+                        />
+                        if !images.is_empty() {
+                            <div class="uploaded-files">
+                                { for images.iter().map(|url| {
+                                    html! {
+                                        <div class="uploaded-file">
+                                            <img src={format!("http://localhost:8080{}", url)} alt="Uploaded image" style="max-width: 100px; max-height: 100px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                                            <div style="display: none; color: red; font-size: 12px;">{"Failed to load image"}</div>
+                                            <span>{ url }</span>
+                                        </div>
+                                    }
+                                }) }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label>{ "Videos" }</label>
+                        <input
+                            type="file"
+                            accept="video/*"
+                            multiple=true
+                            onchange={on_video_upload}
+                        />
+                        if !videos.is_empty() {
+                            <div class="uploaded-files">
+                                { for videos.iter().map(|url| {
+                                    html! {
+                                        <div class="uploaded-file">
+                                            <video src={format!("http://localhost:8080{}", url)} controls=true style="max-width: 200px; max-height: 150px;" />
+                                            <span>{ url }</span>
+                                        </div>
+                                    }
+                                }) }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="form-group">
                         <label for="author">{ "Your Name" }</label>
                         <input
                             type="text"
@@ -290,9 +447,34 @@ pub fn post_detail(props: &PostDetailProps) -> Html {
                         <div class="post-meta">
                             <span class="price">{ format!("${:.2}", post.price) }</span>
                             <span class="category">{ &post.category }</span>
+                            <span class="condition">{ &post.condition }</span>
                             <span class="post-type">{ &post.post_type }</span>
                         </div>
                         <p class="post-description">{ &post.description }</p>
+                        
+                        if !post.images.is_empty() {
+                            <div class="post-images">
+                                <h4>{ "Images" }</h4>
+                                { for post.images.iter().map(|url| {
+                                    html! {
+                                        <img src={format!("http://localhost:8080{}", url)} alt="Post image" style="max-width: 300px; max-height: 300px; margin: 5px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                                        <div style="display: none; color: red; font-size: 14px; margin: 5px;">{"Failed to load image"}</div>
+                                    }
+                                }) }
+                            </div>
+                        }
+                        
+                        if !post.videos.is_empty() {
+                            <div class="post-videos">
+                                <h4>{ "Videos" }</h4>
+                                { for post.videos.iter().map(|url| {
+                                    html! {
+                                        <video src={format!("http://localhost:8080{}", url)} controls=true style="max-width: 400px; max-height: 300px; margin: 5px;" />
+                                    }
+                                }) }
+                            </div>
+                        }
+                        
                         <p class="author">{ format!("Posted by: {}", post.author) }</p>
                         <p class="date">{ format!("Created: {}", post.created_at) }</p>
                     </div>
@@ -357,9 +539,16 @@ pub fn home() -> Html {
                                     <div class="post-card">
                                         <h3>{ &post.title }</h3>
                                         <p class="post-description">{ &post.description }</p>
+                                        
+                                        if let Some(first_image) = post.images.first() {
+                                            <img src={format!("http://localhost:8080{}", first_image)} alt="Post thumbnail" style="max-width: 200px; max-height: 150px; margin: 10px 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                                            <div style="display: none; color: #666; font-size: 12px; margin: 10px 0; text-align: center;">{"No image available"}</div>
+                                        }
+                                        
                                         <div class="post-meta">
                                             <span class="price">{ format!("${:.2}", post.price) }</span>
                                             <span class="category">{ &post.category }</span>
+                                            <span class="condition">{ &post.condition }</span>
                                             <span class="post-type">{ &post.post_type }</span>
                                         </div>
                                         <p class="author">{ format!("by {}", post.author) }</p>

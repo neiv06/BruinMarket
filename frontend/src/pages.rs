@@ -164,10 +164,13 @@ pub fn create_post() -> Html {
                                     name="post_type"
                                     value="sell"
                                     checked={*post_type == "sell"}
-                                    onchange={Callback::from(move |e: Event| {
-                                        if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
-                                            if input.checked() {
-                                                post_type.set("sell".to_string());
+                                    onchange={Callback::from({
+                                        let post_type = post_type.clone();
+                                        move |e: Event| {
+                                            if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                if input.checked() {
+                                                    post_type.set("sell".to_string());
+                                                }
                                             }
                                         }
                                     })}
@@ -180,10 +183,13 @@ pub fn create_post() -> Html {
                                     name="post_type"
                                     value="buy"
                                     checked={*post_type == "buy"}
-                                    onchange={Callback::from(move |e: Event| {
-                                        if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
-                                            if input.checked() {
-                                                post_type.set("buy".to_string());
+                                    onchange={Callback::from({
+                                        let post_type = post_type.clone();
+                                        move |e: Event| {
+                                            if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                if input.checked() {
+                                                    post_type.set("buy".to_string());
+                                                }
                                             }
                                         }
                                     })}
@@ -242,7 +248,7 @@ pub fn post_detail(props: &PostDetailProps) -> Html {
         let error = error.clone();
         let id = props.id.clone();
         
-        use_effect_with_deps(move |id| {
+        use_effect_with(props.id.clone(), move |id| {
             let api = ApiService::new();
             let post_callback = {
                 let post = post.clone();
@@ -268,7 +274,7 @@ pub fn post_detail(props: &PostDetailProps) -> Html {
                 error.set(Some("Invalid post ID".to_string()));
                 loading.set(false);
             }
-        }, props.id.clone());
+        });
     }
 
     html! {
@@ -289,6 +295,78 @@ pub fn post_detail(props: &PostDetailProps) -> Html {
                         <p class="post-description">{ &post.description }</p>
                         <p class="author">{ format!("Posted by: {}", post.author) }</p>
                         <p class="date">{ format!("Created: {}", post.created_at) }</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+
+#[function_component(Home)]
+pub fn home() -> Html {
+    let posts = use_state(|| Vec::<Post>::new());
+    let loading = use_state(|| true);
+    let error = use_state(|| None::<String>);
+
+    {
+        let posts = posts.clone();
+        let loading = loading.clone();
+        let error = error.clone();
+        
+        use_effect_with((), move |_| {
+            let api = ApiService::new();
+            let callback = {
+                let posts = posts.clone();
+                let loading = loading.clone();
+                let error = error.clone();
+                Callback::from(move |result: Result<Vec<Post>, String>| {
+                    loading.set(false);
+                    match result {
+                        Ok(fetched_posts) => {
+                            posts.set(fetched_posts);
+                            error.set(None);
+                        }
+                        Err(e) => {
+                            error.set(Some(e));
+                        }
+                    }
+                })
+            };
+            
+            api.get_posts(callback);
+            || ()
+        });
+    }
+
+    html! {
+        <div class="home">
+            <div class="container">
+                <h2>{ "UCLA Student Marketplace" }</h2>
+                
+                if *loading {
+                    <div class="loading">{ "Loading posts..." }</div>
+                } else if let Some(err) = (*error).as_ref() {
+                    <div class="error">{ format!("Error: {}", err) }</div>
+                } else if posts.is_empty() {
+                    <div class="empty">{ "No posts yet. Be the first to create one!" }</div>
+                } else {
+                    <div class="posts-grid">
+                        { for posts.iter().map(|post| {
+                            html! {
+                                <Link<Route> to={Route::PostDetail { id: post.id.to_string() }}>
+                                    <div class="post-card">
+                                        <h3>{ &post.title }</h3>
+                                        <p class="post-description">{ &post.description }</p>
+                                        <div class="post-meta">
+                                            <span class="price">{ format!("${:.2}", post.price) }</span>
+                                            <span class="category">{ &post.category }</span>
+                                            <span class="post-type">{ &post.post_type }</span>
+                                        </div>
+                                        <p class="author">{ format!("by {}", post.author) }</p>
+                                    </div>
+                                </Link<Route>>
+                            }
+                        }) }
                     </div>
                 }
             </div>

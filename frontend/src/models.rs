@@ -7,7 +7,8 @@ pub struct Post {
     pub description: String,
     pub price: f64,
     pub category: String,
-    pub post_type: String, // "buy" or "sell"
+    #[serde(rename = "type")]  // Map JSON "type" to "post_type"
+    pub post_type: String,
     pub author: String,
     pub created_at: String,
     pub updated_at: String,
@@ -19,6 +20,7 @@ pub struct CreatePostRequest {
     pub description: String,
     pub price: f64,
     pub category: String,
+    #[serde(rename = "type")]  // Map JSON "type" to "post_type"
     pub post_type: String,
     pub author: String,
 }

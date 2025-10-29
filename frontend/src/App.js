@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X, Upload, DollarSign, Tag, Package } from 'lucide-react';
+import { Search, Plus, X, Upload, DollarSign, Tag, Package, Dumbbell, ShoppingBag, Laptop, Ticket, Palette, Lamp, Grid3x3 } from 'lucide-react';
 
 const API_URL = 'http://localhost:8080/api';
+
+const categories = [
+  { name: 'All', value: 'all', icon: Grid3x3 },
+  { name: 'Sports Equipment', value: 'Sports Equipment', icon: Dumbbell },
+  { name: 'Shoes', value: 'Shoes', icon: ShoppingBag },
+  { name: 'Tech', value: 'Tech', icon: Laptop },
+  { name: 'Tickets', value: 'Tickets', icon: Ticket },
+  { name: 'Art', value: 'Art', icon: Palette },
+  { name: 'Decorations', value: 'Decorations', icon: Lamp },
+];
 
 const BruinBuy = () => {
   const [posts, setPosts] = useState([]);
@@ -11,8 +21,6 @@ const BruinBuy = () => {
   const [filterType, setFilterType] = useState('all');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [loading, setLoading] = useState(false);
-
-  const categories = ['Textbooks', 'Electronics', 'Furniture', 'Clothing', 'Other'];
 
   useEffect(() => {
     loadPosts();
@@ -43,7 +51,6 @@ const BruinBuy = () => {
 
   const createPost = async (postData) => {
     try {
-      // Convert price to number
       const payload = {
         ...postData,
         price: parseFloat(postData.price)
@@ -87,120 +94,129 @@ const BruinBuy = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
-      <div className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">BruinBuy</h1>
-              <p className="text-blue-100 text-sm mt-1">UCLA Student Marketplace</p>
+      {/* Header - Full Width */}
+      <div className="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-40">
+        <div className="px-8 py-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold">BruinBuy</h1>
+            {/* <p className="text-blue-100 text-sm mt-1">UCLA Student Marketplace</p> */}
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-md"
+          >
+            <Plus size={20} />
+            Create Post
+          </button>
+        </div>
+      </div>
+
+      {/* Fixed Left Sidebar */}
+      <div className="w-64 bg-white shadow-lg fixed left-0 top-24 bottom-0 overflow-y-auto">
+        <div className="p-6">
+          <h2 className="text-2xl font-bold text-blue-600 mb-6">Marketplace</h2>
+          
+          {/* Search */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search items..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-md"
+          </div>
+
+          {/* Categories */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-3">Categories</label>
+            <div className="space-y-1">
+              {categories.map((cat) => {
+                const IconComponent = cat.icon;
+                return (
+                  <button
+                    key={cat.value}
+                    onClick={() => setFilterCategory(cat.value)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${
+                      filterCategory === cat.value
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <IconComponent size={20} />
+                    <span className="text-sm font-medium">{cat.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Post Type */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
-              <Plus size={20} />
-              Create Post
-            </button>
+              <option value="all">All Types</option>
+              <option value="selling">Selling</option>
+              <option value="buying">Looking to Buy</option>
+            </select>
+          </div>
+
+          {/* Price Range */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+            <div className="space-y-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={priceRange.min}
+                onChange={(e) => setPriceRange({...priceRange, min: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={priceRange.max}
+                onChange={(e) => setPriceRange({...priceRange, max: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-6">
-          {/* Left Sidebar - Filters */}
-          <div className="w-64 flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Filters</h2>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-                    <input
-                      type="text"
-                      placeholder="Search items..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <select
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-                  <select
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="selling">Selling</option>
-                    <option value="buying">Looking to Buy</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
-                  <div className="space-y-2">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={priceRange.min}
-                      onChange={(e) => setPriceRange({...priceRange, min: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={priceRange.max}
-                      onChange={(e) => setPriceRange({...priceRange, max: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
+      {/* Main Content */}
+      <div className="flex-1 ml-64 mt-24">
+        {/* Posts Grid */}
+        <div className="p-8">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+              <p className="text-gray-600 mt-4">Loading posts...</p>
             </div>
-          </div>
-
-          {/* Main Content Area */}
-          <div className="flex-1">
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-                <p className="text-gray-600 mt-4">Loading posts...</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {posts.map(post => (
+                  <PostCard key={post.id} post={post} onDelete={deletePost} />
+                ))}
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {posts.map(post => (
-                    <PostCard key={post.id} post={post} onDelete={deletePost} />
-                  ))}
-                </div>
 
-                {posts.length === 0 && (
-                  <div className="text-center py-12">
-                    <Package size={64} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-500 text-lg">No posts found. Create the first one!</p>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+              {posts.length === 0 && (
+                <div className="text-center py-12">
+                  <Package size={64} className="mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500 text-lg">No posts found. Create the first one!</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -208,7 +224,7 @@ const BruinBuy = () => {
         <CreatePostModal
           onClose={() => setShowCreateModal(false)}
           onCreate={createPost}
-          categories={categories}
+          categories={categories.filter(c => c.value !== 'all')}
         />
       )}
     </div>
@@ -363,7 +379,7 @@ const CreatePostModal = ({ onClose, onCreate, categories }) => {
     title: '',
     description: '',
     price: '',
-    category: categories[0],
+    category: categories[0].value,
     type: 'selling',
     media: []
   });
@@ -481,7 +497,7 @@ const CreatePostModal = ({ onClose, onCreate, categories }) => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat.value} value={cat.value}>{cat.name}</option>
               ))}
             </select>
           </div>

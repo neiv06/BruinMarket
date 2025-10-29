@@ -30,7 +30,7 @@ fn switch(routes: Route) -> Html {
 #[function_component(App)]
 fn app() -> Html {
     html! {
-        <BrowserRouter>
+        <HashRouter>
             <div class="app">
                 <Header />
                 <main class="main-content">
@@ -38,7 +38,7 @@ fn app() -> Html {
                 </main>
                 <Footer />
             </div>
-        </BrowserRouter>
+        </HashRouter>
     }
 }
 

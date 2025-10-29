@@ -7,6 +7,194 @@ use web_sys::{FormData, HtmlInputElement};
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 
+// Helper function to get full image URL
+fn get_full_url(path: &str) -> String {
+    if path.starts_with("http") {
+        path.to_string()
+    } else {
+        format!("http://localhost:8080{}", path)
+    }
+}
+
+#[function_component(Home)]
+pub fn home() -> Html {
+    let posts = use_state(|| Vec::<Post>::new());
+    let loading = use_state(|| true);
+    let error = use_state(|| None::<String>);
+
+    {
+        let posts = posts.clone();
+        let loading = loading.clone();
+        let error = error.clone();
+        
+        use_effect_with((), move |_| {
+            let api = ApiService::new();
+            let callback = Callback::from(move |result: Result<Vec<Post>, String>| {
+                loading.set(false);
+                match result {
+                    Ok(fetched_posts) => posts.set(fetched_posts),
+                    Err(e) => error.set(Some(e)),
+                }
+            });
+            api.get_posts(callback);
+            || ()
+        });
+    }
+
+    html! {
+        <div class="home">
+            <div class="container">
+                <h2>{ "Marketplace Posts" }</h2>
+                
+                if *loading {
+                    <div class="loading">{ "Loading posts..." }</div>
+                } else if let Some(err) = (*error).as_ref() {
+                    <div class="error">{ format!("Error: {}", err) }</div>
+                } else if posts.is_empty() {
+                    <div class="no-posts">{ "No posts yet. Be the first to create one!" }</div>
+                } else {
+                    <div class="posts-grid">
+                        { for posts.iter().map(|post| {
+                            html! {
+                                <div class="post-card">
+                                    <Link<Route> to={Route::PostDetail { id: post.id.to_string() }}>
+                                        if !post.images.is_empty() {
+                                            <div class="post-image">
+                                                <img 
+                                                    src={get_full_url(&post.images[0])} 
+                                                    alt={post.title.clone()}
+                                                    onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22%3ENo Image%3C/text%3E%3C/svg%3E'"
+                                                />
+                                            </div>
+                                        } else {
+                                            <div class="post-image no-image">
+                                                <span>{ "No Image" }</span>
+                                            </div>
+                                        }
+                                        <div class="post-info">
+                                            <h3>{ &post.title }</h3>
+                                            <p class="post-price">{ format!("${:.2}", post.price) }</p>
+                                            <p class="post-meta">
+                                                { format!("{} • {}", post.category, post.condition) }
+                                            </p>
+                                            <span class={classes!("post-type", if post.post_type == "buy" { "buy" } else { "sell" })}>
+                                                { if post.post_type == "buy" { "BUYING" } else { "SELLING" } }
+                                            </span>
+                                        </div>
+                                    </Link<Route>>
+                                </div>
+                            }
+                        }) }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct PostDetailProps {
+    pub id: String,
+}
+
+#[function_component(PostDetail)]
+pub fn post_detail(props: &PostDetailProps) -> Html {
+    let post = use_state(|| None::<Post>);
+    let loading = use_state(|| true);
+    let error = use_state(|| None::<String>);
+
+    {
+        let post = post.clone();
+        let loading = loading.clone();
+        let error = error.clone();
+        let id = props.id.clone();
+        
+        use_effect_with(id.clone(), move |_| {
+            let api = ApiService::new();
+            let post_id = id.parse::<i32>().unwrap_or(0);
+            let callback = Callback::from(move |result: Result<Post, String>| {
+                loading.set(false);
+                match result {
+                    Ok(fetched_post) => post.set(Some(fetched_post)),
+                    Err(e) => error.set(Some(e)),
+                }
+            });
+            api.get_post(post_id, callback);
+            || ()
+        });
+    }
+
+    html! {
+        <div class="post-detail">
+            <div class="container">
+                if *loading {
+                    <div class="loading">{ "Loading post..." }</div>
+                } else if let Some(err) = (*error).as_ref() {
+                    <div class="error">{ format!("Error: {}", err) }</div>
+                } else if let Some(p) = (*post).as_ref() {
+                    <div class="post-content">
+                        <h2>{ &p.title }</h2>
+                        
+                        // Image gallery
+                        if !p.images.is_empty() {
+                            <div class="media-gallery">
+                                { for p.images.iter().map(|img| {
+                                    html! {
+                                        <div class="media-item">
+                                            <img 
+                                                src={get_full_url(img)} 
+                                                alt={p.title.clone()}
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                            />
+                                            <div style="display:none; padding: 20px; background: #f0f0f0; text-align: center;">
+                                                { "Image failed to load" }
+                                            </div>
+                                        </div>
+                                    }
+                                }) }
+                            </div>
+                        }
+                        
+                        // Video gallery
+                        if !p.videos.is_empty() {
+                            <div class="media-gallery">
+                                { for p.videos.iter().map(|vid| {
+                                    html! {
+                                        <div class="media-item">
+                                            <video 
+                                                src={get_full_url(vid)} 
+                                                controls=true
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                            />
+                                            <div style="display:none; padding: 20px; background: #f0f0f0; text-align: center;">
+                                                { "Video failed to load" }
+                                            </div>
+                                        </div>
+                                    }
+                                }) }
+                            </div>
+                        }
+                        
+                        <div class="post-details">
+                            <p class="price">{ format!("${:.2}", p.price) }</p>
+                            <p class="description">{ &p.description }</p>
+                            
+                            <div class="post-meta-info">
+                                <p><strong>{ "Category: " }</strong>{ &p.category }</p>
+                                <p><strong>{ "Condition: " }</strong>{ &p.condition }</p>
+                                <p><strong>{ "Type: " }</strong>{ &p.post_type }</p>
+                                <p><strong>{ "Posted by: " }</strong>{ &p.author }</p>
+                            </div>
+                        </div>
+                    </div>
+                } else {
+                    <div class="error">{ "Post not found" }</div>
+                }
+            </div>
+        </div>
+    }
+}
+
 #[function_component(CreatePost)]
 pub fn create_post() -> Html {
     let title = use_state(|| String::new());
@@ -21,6 +209,7 @@ pub fn create_post() -> Html {
     let loading = use_state(|| false);
     let error = use_state(|| None::<String>);
     let success = use_state(|| false);
+    let uploading = use_state(|| false);
 
     let navigator = use_navigator().unwrap();
 
@@ -98,58 +287,82 @@ pub fn create_post() -> Html {
     let on_image_upload = {
         let images = images.clone();
         let error = error.clone();
+        let uploading = uploading.clone();
+        
         Callback::from(move |e: Event| {
+            web_sys::console::log_1(&"IMAGE UPLOAD CLICKED!".into());
+            let images = images.clone();
+            let error = error.clone();
+            let uploading = uploading.clone();
+            
             if let Some(input) = e.target_dyn_into::<HtmlInputElement>() {
                 if let Some(files) = input.files() {
                     if let Some(file) = files.get(0) {
-                        let form_data = FormData::new().unwrap();
-                        form_data.append_with_blob("image", &file).unwrap();
+                        uploading.set(true);
                         
-                        let images_clone = images.clone();
-                        let error_clone = error.clone();
+                        let file_name = file.name();
+                        let file_type = file.type_();
                         
+                        // Read file as bytes using FileReader
                         spawn_local(async move {
-                            let client = reqwest::Client::new();
+                            // Convert web_sys::File to bytes
+                            let array_buffer = wasm_bindgen_futures::JsFuture::from(
+                                file.array_buffer()
+                            ).await;
                             
-                            // Convert FormData to reqwest::multipart::Form
-                            let mut form = reqwest::multipart::Form::new();
-                            
-                            // Read file as bytes
-                            let file_array = wasm_bindgen_futures::JsFuture::from(file.array_buffer())
-                                .await
-                                .unwrap();
-                            let file_bytes = js_sys::Uint8Array::new(&file_array).to_vec();
-                            
-                            let part = reqwest::multipart::Part::bytes(file_bytes)
-                                .file_name(file.name())
-                                .mime_str(file.type_().as_str())
-                                .unwrap();
-                            
-                            form = form.part("image", part);
-                            
-                            match client
-                                .post("http://localhost:8080/api/upload/image")
-                                .multipart(form)
-                                .send()
-                                .await
-                            {
-                                Ok(response) => {
-                                    if response.status().is_success() {
-                                        match response.json::<serde_json::Value>().await {
-                                            Ok(json) => {
-                                                if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
-                                                    let mut current_images = images_clone.to_vec();
-                                                    current_images.push(url.to_string());
-                                                    images_clone.set(current_images);
+                            match array_buffer {
+                                Ok(buffer) => {
+                                    let uint8_array = js_sys::Uint8Array::new(&buffer);
+                                    let bytes = uint8_array.to_vec();
+                                    
+                                    // Create multipart form
+                                    let part = reqwest::multipart::Part::bytes(bytes)
+                                        .file_name(file_name.clone())
+                                        .mime_str(&file_type)
+                                        .unwrap();
+                                    
+                                    let form = reqwest::multipart::Form::new()
+                                        .part("image", part);
+                                    
+                                    // Upload to server
+                                    let client = reqwest::Client::new();
+                                    match client
+                                        .post("http://localhost:8080/api/upload/image")
+                                        .multipart(form)
+                                        .send()
+                                        .await
+                                    {
+                                        Ok(response) => {
+                                            if response.status().is_success() {
+                                                match response.json::<serde_json::Value>().await {
+                                                    Ok(json) => {
+                                                        if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
+                                                            let mut current = (*images).clone();
+                                                            current.push(url.to_string());
+                                                            images.set(current);
+                                                            web_sys::console::log_1(&format!("Image uploaded: {}", url).into());
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        error.set(Some(format!("Parse error: {}", e)));
+                                                    }
                                                 }
+                                            } else {
+                                                let status = response.status();
+                                                let text = response.text().await.unwrap_or_default();
+                                                error.set(Some(format!("Upload failed: {} - {}", status, text)));
                                             }
-                                            Err(e) => error_clone.set(Some(format!("Failed to parse upload response: {}", e))),
                                         }
-                                    } else {
-                                        error_clone.set(Some(format!("Failed to upload image: {}", response.status())));
+                                        Err(e) => {
+                                            error.set(Some(format!("Network error: {}", e)));
+                                        }
                                     }
+                                    uploading.set(false);
                                 }
-                                Err(e) => error_clone.set(Some(format!("Upload failed: {}", e))),
+                                Err(e) => {
+                                    error.set(Some(format!("File read error: {:?}", e)));
+                                    uploading.set(false);
+                                }
                             }
                         });
                     }
@@ -161,52 +374,77 @@ pub fn create_post() -> Html {
     let on_video_upload = {
         let videos = videos.clone();
         let error = error.clone();
+        let uploading = uploading.clone();
+        
         Callback::from(move |e: Event| {
+            let videos = videos.clone();
+            let error = error.clone();
+            let uploading = uploading.clone();
+            
             if let Some(input) = e.target_dyn_into::<HtmlInputElement>() {
                 if let Some(files) = input.files() {
                     if let Some(file) = files.get(0) {
-                        let videos_clone = videos.clone();
-                        let error_clone = error.clone();
+                        uploading.set(true);
+                        
+                        let file_name = file.name();
+                        let file_type = file.type_();
                         
                         spawn_local(async move {
-                            let client = reqwest::Client::new();
+                            let array_buffer = wasm_bindgen_futures::JsFuture::from(
+                                file.array_buffer()
+                            ).await;
                             
-                            // Read file as bytes
-                            let file_array = wasm_bindgen_futures::JsFuture::from(file.array_buffer())
-                                .await
-                                .unwrap();
-                            let file_bytes = js_sys::Uint8Array::new(&file_array).to_vec();
-                            
-                            let part = reqwest::multipart::Part::bytes(file_bytes)
-                                .file_name(file.name())
-                                .mime_str(file.type_().as_str())
-                                .unwrap();
-                            
-                            let form = reqwest::multipart::Form::new().part("video", part);
-                            
-                            match client
-                                .post("http://localhost:8080/api/upload/video")
-                                .multipart(form)
-                                .send()
-                                .await
-                            {
-                                Ok(response) => {
-                                    if response.status().is_success() {
-                                        match response.json::<serde_json::Value>().await {
-                                            Ok(json) => {
-                                                if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
-                                                    let mut current_videos = videos_clone.to_vec();
-                                                    current_videos.push(url.to_string());
-                                                    videos_clone.set(current_videos);
+                            match array_buffer {
+                                Ok(buffer) => {
+                                    let uint8_array = js_sys::Uint8Array::new(&buffer);
+                                    let bytes = uint8_array.to_vec();
+                                    
+                                    let part = reqwest::multipart::Part::bytes(bytes)
+                                        .file_name(file_name.clone())
+                                        .mime_str(&file_type)
+                                        .unwrap();
+                                    
+                                    let form = reqwest::multipart::Form::new()
+                                        .part("video", part);
+                                    
+                                    let client = reqwest::Client::new();
+                                    match client
+                                        .post("http://localhost:8080/api/upload/video")
+                                        .multipart(form)
+                                        .send()
+                                        .await
+                                    {
+                                        Ok(response) => {
+                                            if response.status().is_success() {
+                                                match response.json::<serde_json::Value>().await {
+                                                    Ok(json) => {
+                                                        if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
+                                                            let mut current = (*videos).clone();
+                                                            current.push(url.to_string());
+                                                            videos.set(current);
+                                                            web_sys::console::log_1(&format!("Video uploaded: {}", url).into());
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        error.set(Some(format!("Parse error: {}", e)));
+                                                    }
                                                 }
+                                            } else {
+                                                let status = response.status();
+                                                let text = response.text().await.unwrap_or_default();
+                                                error.set(Some(format!("Upload failed: {} - {}", status, text)));
                                             }
-                                            Err(e) => error_clone.set(Some(format!("Failed to parse upload response: {}", e))),
                                         }
-                                    } else {
-                                        error_clone.set(Some(format!("Failed to upload video: {}", response.status())));
+                                        Err(e) => {
+                                            error.set(Some(format!("Network error: {}", e)));
+                                        }
                                     }
+                                    uploading.set(false);
                                 }
-                                Err(e) => error_clone.set(Some(format!("Upload failed: {}", e))),
+                                Err(e) => {
+                                    error.set(Some(format!("File read error: {:?}", e)));
+                                    uploading.set(false);
+                                }
                             }
                         });
                     }
@@ -251,7 +489,7 @@ pub fn create_post() -> Html {
                     </div>
 
                     <div class="form-group">
-                        <label for="price">{ "Price" }</label>
+                        <label for="price">{ "Price ($)" }</label>
                         <input
                             type="number"
                             id="price"
@@ -307,7 +545,7 @@ pub fn create_post() -> Html {
                                         }
                                     })}
                                 />
-                                { "Selling" }
+                                { " Selling" }
                             </label>
                             <label>
                                 <input
@@ -326,7 +564,7 @@ pub fn create_post() -> Html {
                                         }
                                     })}
                                 />
-                                { "Buying" }
+                                { " Buying" }
                             </label>
                         </div>
                     </div>
@@ -356,14 +594,22 @@ pub fn create_post() -> Html {
                             type="file"
                             accept="image/*"
                             onchange={on_image_upload}
+                            disabled={*uploading}
                         />
+                        if *uploading {
+                            <div class="upload-status">{ "Uploading..." }</div>
+                        }
                         if !images.is_empty() {
                             <div class="uploaded-files">
                                 { for images.iter().map(|url| {
                                     html! {
                                         <div class="uploaded-file">
-                                            <img src={format!("http://localhost:8080{}", url)} alt="Uploaded image" style="max-width: 100px; max-height: 100px;" />
-                                            <span>{ url }</span>
+                                            <img 
+                                                src={get_full_url(url)} 
+                                                alt="Uploaded" 
+                                                style="max-width: 150px; max-height: 150px; object-fit: cover; border-radius: 4px;"
+                                                onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23f44%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22%3EError%3C/text%3E%3C/svg%3E'"
+                                            />
                                         </div>
                                     }
                                 }) }
@@ -377,14 +623,21 @@ pub fn create_post() -> Html {
                             type="file"
                             accept="video/*"
                             onchange={on_video_upload}
+                            disabled={*uploading}
                         />
+                        if *uploading {
+                            <div class="upload-status">{ "Uploading..." }</div>
+                        }
                         if !videos.is_empty() {
                             <div class="uploaded-files">
                                 { for videos.iter().map(|url| {
                                     html! {
                                         <div class="uploaded-file">
-                                            <video src={format!("http://localhost:8080{}", url)} controls=true style="max-width: 200px; max-height: 150px;" />
-                                            <span>{ url }</span>
+                                            <video 
+                                                src={get_full_url(url)} 
+                                                controls=true 
+                                                style="max-width: 200px; max-height: 150px; border-radius: 4px;"
+                                            />
                                         </div>
                                     }
                                 }) }
@@ -408,15 +661,19 @@ pub fn create_post() -> Html {
                     </div>
 
                     if let Some(err) = (*error).as_ref() {
-                        <div class="error">{ err }</div>
+                        <div class="error" style="color: red; padding: 10px; margin: 10px 0; background: #fee;">
+                            { err }
+                        </div>
                     }
 
                     if *success {
-                        <div class="success">{ "Post created successfully!" }</div>
+                        <div class="success" style="color: green; padding: 10px; margin: 10px 0; background: #efe;">
+                            { "Post created successfully!" }
+                        </div>
                     }
 
-                    <button type="submit" disabled={*loading}>
-                        { if *loading { "Creating..." } else { "Create Post" } }
+                    <button type="submit" disabled={*loading || *uploading}>
+                        { if *loading { "Creating..." } else if *uploading { "Uploading files..." } else { "Create Post" } }
                     </button>
                 </form>
             </div>

@@ -43,12 +43,18 @@ const BruinBuy = () => {
 
   const createPost = async (postData) => {
     try {
+      // Convert price to number
+      const payload = {
+        ...postData,
+        price: parseFloat(postData.price)
+      };
+
       const response = await fetch(`${API_URL}/posts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(postData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) throw new Error('Failed to create post');
@@ -63,7 +69,7 @@ const BruinBuy = () => {
   };
 
   const deletePost = async (postId) => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
 
     try {
       const response = await fetch(`${API_URL}/posts/${postId}`, {

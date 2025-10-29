@@ -14,19 +14,33 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
+var jwtSecret = []byte("your-secret-key-change-this-in-production")
+
 // Models
+type User struct {
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	Password  string    `json:"-"` // Never send password in JSON
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Post struct {
 	ID          string    `json:"id"`
 	UserID      string    `json:"user_id"`
+	UserEmail   string    `json:"user_email"`
+	UserName    string    `json:"user_name"`
 	Title       string    `json:"title" binding:"required"`
 	Description string    `json:"description" binding:"required"`
 	Price       float64   `json:"price" binding:"required"`
 	Category    string    `json:"category" binding:"required"`
-	Type        string    `json:"type" binding:"required"` // "selling" or "buying"
+	Type        string    `json:"type" binding:"required"`
 	Media       []Media   `json:"media"`
 	CreatedAt   time.Time `json:"created_at"`
 }
@@ -35,19 +49,33 @@ type Media struct {
 	ID     string `json:"id"`
 	PostID string `json:"post_id"`
 	URL    string `json:"url"`
-	Type   string `json:"type"` // "image" or "video"
+	Type   string `json:"type"`
 	Order  int    `json:"order"`
 }
 
-type PostFilters struct {
-	Category string
-	Type     string
-	MinPrice float64
-	MaxPrice float64
-	Search   string
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
-// Database setup
+type RegisterRequest struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	Name     string `json:"name" binding:"required"`
+}
+
+type AuthResponse struct {
+	Token string `json:"token"`
+	User  User   `json:"user"`
+}
+
+type Claims struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	jwt.RegisteredClaims
+}
+
+// Database
 var db *sql.DB
 
 func initDB() error {
@@ -66,11 +94,18 @@ func initDB() error {
 		return err
 	}
 
-	// Create tables
 	schema := `
+	CREATE TABLE IF NOT EXISTS users (
+		id VARCHAR(255) PRIMARY KEY,
+		email VARCHAR(255) UNIQUE NOT NULL,
+		name VARCHAR(255) NOT NULL,
+		password VARCHAR(255) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS posts (
 		id VARCHAR(255) PRIMARY KEY,
-		user_id VARCHAR(255) NOT NULL,
+		user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
 		title VARCHAR(255) NOT NULL,
 		description TEXT NOT NULL,
 		price DECIMAL(10,2) NOT NULL,
@@ -87,6 +122,7 @@ func initDB() error {
 		order_index INTEGER NOT NULL
 	);
 
+	CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
 	CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category);
 	CREATE INDEX IF NOT EXISTS idx_posts_type ON posts(type);
 	CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
@@ -96,7 +132,232 @@ func initDB() error {
 	return err
 }
 
-// Handlers
+// Auth Middleware
+func authMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header required"})
+			c.Abort()
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == authHeader {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization format"})
+			c.Abort()
+			return
+		}
+
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtSecret, nil
+		})
+
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.Abort()
+			return
+		}
+
+		c.Set("user_id", claims.UserID)
+		c.Set("user_email", claims.Email)
+		c.Next()
+	}
+}
+
+// Auth Handlers
+func register(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate UCLA email
+	if !strings.HasSuffix(strings.ToLower(req.Email), "@ucla.edu") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "must use a @ucla.edu email address"})
+		return
+	}
+
+	// Check if user exists
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", req.Email).Scan(&exists)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+	if exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email already registered"})
+		return
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+		return
+	}
+
+	// Create user
+	userID := uuid.New().String()
+	_, err = db.Exec(
+		"INSERT INTO users (id, email, name, password, created_at) VALUES ($1, $2, $3, $4, $5)",
+		userID, req.Email, req.Name, string(hashedPassword), time.Now(),
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+		return
+	}
+
+	// Generate JWT
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		UserID: userID,
+		Email:  req.Email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)), // 7 days
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	})
+
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+
+	user := User{
+		ID:        userID,
+		Email:     req.Email,
+		Name:      req.Name,
+		CreatedAt: time.Now(),
+	}
+
+	c.JSON(http.StatusCreated, AuthResponse{
+		Token: tokenString,
+		User:  user,
+	})
+}
+
+func login(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get user
+	var user User
+	var hashedPassword string
+	err := db.QueryRow(
+		"SELECT id, email, name, password, created_at FROM users WHERE email = $1",
+		req.Email,
+	).Scan(&user.ID, &user.Email, &user.Name, &hashedPassword, &user.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	// Verify password
+	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(req.Password))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
+		return
+	}
+
+	// Generate JWT
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		UserID: user.ID,
+		Email:  user.Email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	})
+
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, AuthResponse{
+		Token: tokenString,
+		User:  user,
+	})
+}
+
+func getMe(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var user User
+	err := db.QueryRow(
+		"SELECT id, email, name, created_at FROM users WHERE id = $1",
+		userID,
+	).Scan(&user.ID, &user.Email, &user.Name, &user.CreatedAt)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+func getMyPosts(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	rows, err := db.Query(
+		`SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.created_at 
+		FROM posts p 
+		JOIN users u ON p.user_id = u.id 
+		WHERE p.user_id = $1 
+		ORDER BY p.created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch posts"})
+		return
+	}
+	defer rows.Close()
+
+	posts := []Post{}
+	for rows.Next() {
+		var post Post
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.CreatedAt)
+		if err != nil {
+			continue
+		}
+
+		// Fetch media
+		mediaRows, err := db.Query(
+			"SELECT id, url, type, order_index FROM media WHERE post_id = $1 ORDER BY order_index",
+			post.ID,
+		)
+		if err == nil {
+			defer mediaRows.Close()
+			for mediaRows.Next() {
+				var media Media
+				var order int
+				mediaRows.Scan(&media.ID, &media.URL, &media.Type, &order)
+				media.PostID = post.ID
+				media.Order = order
+				post.Media = append(post.Media, media)
+			}
+		}
+
+		posts = append(posts, post)
+	}
+
+	c.JSON(http.StatusOK, posts)
+}
+
+// Post Handlers
 func createPost(c *gin.Context) {
 	var post Post
 	if err := c.ShouldBindJSON(&post); err != nil {
@@ -104,21 +365,23 @@ func createPost(c *gin.Context) {
 		return
 	}
 
-	// Generate ID
 	post.ID = uuid.New().String()
 	post.CreatedAt = time.Now()
+	post.UserID = c.GetString("user_id")
 
-	// TODO: Get user_id from JWT token
-	post.UserID = "temp_user_id"
-
-	// Validate type
 	if post.Type != "selling" && post.Type != "buying" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "type must be 'selling' or 'buying'"})
 		return
 	}
 
-	// Insert post
-	_, err := db.Exec(
+	// Get user info
+	err := db.QueryRow("SELECT email, name FROM users WHERE id = $1", post.UserID).Scan(&post.UserEmail, &post.UserName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user info"})
+		return
+	}
+
+	_, err = db.Exec(
 		"INSERT INTO posts (id, user_id, title, description, price, category, type, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		post.ID, post.UserID, post.Title, post.Description, post.Price, post.Category, post.Type, post.CreatedAt,
 	)
@@ -127,7 +390,6 @@ func createPost(c *gin.Context) {
 		return
 	}
 
-	// Insert media
 	for i, media := range post.Media {
 		mediaID := uuid.New().String()
 		_, err := db.Exec(
@@ -143,59 +405,54 @@ func createPost(c *gin.Context) {
 }
 
 func getPosts(c *gin.Context) {
-	filters := PostFilters{
-		Category: c.Query("category"),
-		Type:     c.Query("type"),
-		Search:   c.Query("search"),
-	}
+	category := c.Query("category")
+	postType := c.Query("type")
+	search := c.Query("search")
+	minPrice := c.Query("min_price")
+	maxPrice := c.Query("max_price")
 
-	if minPrice := c.Query("min_price"); minPrice != "" {
-		if val, err := strconv.ParseFloat(minPrice, 64); err == nil {
-			filters.MinPrice = val
-		}
-	}
-
-	if maxPrice := c.Query("max_price"); maxPrice != "" {
-		if val, err := strconv.ParseFloat(maxPrice, 64); err == nil {
-			filters.MaxPrice = val
-		}
-	}
-
-	query := "SELECT id, user_id, title, description, price, category, type, created_at FROM posts WHERE 1=1"
+	query := `SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.created_at 
+			  FROM posts p 
+			  JOIN users u ON p.user_id = u.id 
+			  WHERE 1=1`
 	args := []interface{}{}
 	argCount := 1
 
-	if filters.Category != "" && filters.Category != "all" {
-		query += fmt.Sprintf(" AND category = $%d", argCount)
-		args = append(args, filters.Category)
+	if category != "" && category != "all" {
+		query += fmt.Sprintf(" AND p.category = $%d", argCount)
+		args = append(args, category)
 		argCount++
 	}
 
-	if filters.Type != "" && filters.Type != "all" {
-		query += fmt.Sprintf(" AND type = $%d", argCount)
-		args = append(args, filters.Type)
+	if postType != "" && postType != "all" {
+		query += fmt.Sprintf(" AND p.type = $%d", argCount)
+		args = append(args, postType)
 		argCount++
 	}
 
-	if filters.MinPrice > 0 {
-		query += fmt.Sprintf(" AND price >= $%d", argCount)
-		args = append(args, filters.MinPrice)
+	if minPrice != "" {
+		if val, err := strconv.ParseFloat(minPrice, 64); err == nil {
+			query += fmt.Sprintf(" AND p.price >= $%d", argCount)
+			args = append(args, val)
+			argCount++
+		}
+	}
+
+	if maxPrice != "" {
+		if val, err := strconv.ParseFloat(maxPrice, 64); err == nil {
+			query += fmt.Sprintf(" AND p.price <= $%d", argCount)
+			args = append(args, val)
+			argCount++
+		}
+	}
+
+	if search != "" {
+		query += fmt.Sprintf(" AND (LOWER(p.title) LIKE $%d OR LOWER(p.description) LIKE $%d)", argCount, argCount)
+		args = append(args, "%"+strings.ToLower(search)+"%")
 		argCount++
 	}
 
-	if filters.MaxPrice > 0 {
-		query += fmt.Sprintf(" AND price <= $%d", argCount)
-		args = append(args, filters.MaxPrice)
-		argCount++
-	}
-
-	if filters.Search != "" {
-		query += fmt.Sprintf(" AND (LOWER(title) LIKE $%d OR LOWER(description) LIKE $%d)", argCount, argCount)
-		args = append(args, "%"+strings.ToLower(filters.Search)+"%")
-		argCount++
-	}
-
-	query += " ORDER BY created_at DESC"
+	query += " ORDER BY p.created_at DESC"
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -207,18 +464,17 @@ func getPosts(c *gin.Context) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.CreatedAt)
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.CreatedAt)
 		if err != nil {
-			log.Printf("Error scanning post: %v", err)
 			continue
 		}
 
-		// Fetch media for this post
 		mediaRows, err := db.Query(
 			"SELECT id, url, type, order_index FROM media WHERE post_id = $1 ORDER BY order_index",
 			post.ID,
 		)
 		if err == nil {
+			defer mediaRows.Close()
 			for mediaRows.Next() {
 				var media Media
 				var order int
@@ -227,7 +483,6 @@ func getPosts(c *gin.Context) {
 				media.Order = order
 				post.Media = append(post.Media, media)
 			}
-			mediaRows.Close()
 		}
 
 		posts = append(posts, post)
@@ -241,9 +496,12 @@ func getPost(c *gin.Context) {
 
 	var post Post
 	err := db.QueryRow(
-		"SELECT id, user_id, title, description, price, category, type, created_at FROM posts WHERE id = $1",
+		`SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.created_at 
+		FROM posts p 
+		JOIN users u ON p.user_id = u.id 
+		WHERE p.id = $1`,
 		postID,
-	).Scan(&post.ID, &post.UserID, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.CreatedAt)
+	).Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
@@ -254,7 +512,6 @@ func getPost(c *gin.Context) {
 		return
 	}
 
-	// Fetch media
 	rows, err := db.Query(
 		"SELECT id, url, type, order_index FROM media WHERE post_id = $1 ORDER BY order_index",
 		postID,
@@ -276,18 +533,28 @@ func getPost(c *gin.Context) {
 
 func deletePost(c *gin.Context) {
 	postID := c.Param("id")
+	userID := c.GetString("user_id")
 
-	// TODO: Check if user owns this post (using JWT)
-
-	result, err := db.Exec("DELETE FROM posts WHERE id = $1", postID)
+	// Check ownership
+	var ownerID string
+	err := db.QueryRow("SELECT user_id FROM posts WHERE id = $1", postID).Scan(&ownerID)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+		return
+	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete post"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+	if ownerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "you can only delete your own posts"})
+		return
+	}
+
+	_, err = db.Exec("DELETE FROM posts WHERE id = $1", postID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete post"})
 		return
 	}
 
@@ -295,7 +562,6 @@ func deletePost(c *gin.Context) {
 }
 
 func uploadMedia(c *gin.Context) {
-	// Parse multipart form (max 10MB per file)
 	c.Request.ParseMultipartForm(10 << 20)
 
 	file, header, err := c.Request.FormFile("file")
@@ -305,26 +571,20 @@ func uploadMedia(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Validate file type
 	contentType := header.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "image/") && !strings.HasPrefix(contentType, "video/") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "only images and videos allowed"})
 		return
 	}
 
-	// Generate unique filename
 	ext := filepath.Ext(header.Filename)
 	filename := uuid.New().String() + ext
 
-	// Save to local storage (in production, upload to S3)
 	uploadDir := "./uploads"
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create upload directory"})
-		return
-	}
-	uploadPath := filepath.Join(uploadDir, filename)
+	os.MkdirAll(uploadDir, os.ModePerm)
+	filepath := filepath.Join(uploadDir, filename)
 
-	dst, err := os.Create(uploadPath)
+	dst, err := os.Create(filepath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
@@ -336,7 +596,6 @@ func uploadMedia(c *gin.Context) {
 		return
 	}
 
-	// Return URL (in production, return S3 URL)
 	url := fmt.Sprintf("/uploads/%s", filename)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -346,16 +605,13 @@ func uploadMedia(c *gin.Context) {
 }
 
 func main() {
-	// Initialize database
 	if err := initDB(); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer db.Close()
 
-	// Setup Gin
 	r := gin.Default()
 
-	// CORS middleware
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -364,23 +620,28 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Serve uploaded files
 	r.Static("/uploads", "./uploads")
 
-	// API routes
 	api := r.Group("/api")
 	{
-		// Posts
-		api.POST("/posts", createPost)
+		// Public routes
+		api.POST("/auth/register", register)
+		api.POST("/auth/login", login)
 		api.GET("/posts", getPosts)
 		api.GET("/posts/:id", getPost)
-		api.DELETE("/posts/:id", deletePost)
 
-		// Media upload
-		api.POST("/upload", uploadMedia)
+		// Protected routes
+		protected := api.Group("/")
+		protected.Use(authMiddleware())
+		{
+			protected.GET("/auth/me", getMe)
+			protected.GET("/auth/my-posts", getMyPosts)
+			protected.POST("/posts", createPost)
+			protected.DELETE("/posts/:id", deletePost)
+			protected.POST("/upload", uploadMedia)
+		}
 	}
 
-	// Health check
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})

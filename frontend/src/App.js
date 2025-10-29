@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X, Upload, DollarSign, Tag, Package, Dumbbell, ShoppingBag, Laptop, Ticket, Palette, Lamp, Grid3x3 } from 'lucide-react';
+import { Search, Plus, X, Upload, DollarSign, Tag, Package, Dumbbell, ShoppingBag, Laptop, Ticket, Palette, Lamp, Shirt, NotebookPen, CircleQuestionMark, Grid3x3, User, LogOut } from 'lucide-react';
 
 const API_URL = 'http://localhost:8080/api';
 
 const categories = [
   { name: 'All', value: 'all', icon: Grid3x3 },
-  { name: 'Sports Equipment', value: 'Sports Equipment', icon: Dumbbell },
+  { name: 'Clothing', value:'Clothing', icon: Shirt },
   { name: 'Shoes', value: 'Shoes', icon: ShoppingBag },
-  { name: 'Tech', value: 'Tech', icon: Laptop },
+  { name: 'Electronics', value: 'Tech', icon: Laptop },
+  { name: 'Class Supplies', value: 'Class Supplies', icon: NotebookPen},
+  { name: 'Sports Equipment', value: 'Sports Equipment', icon: Dumbbell },
   { name: 'Tickets', value: 'Tickets', icon: Ticket },
   { name: 'Art', value: 'Art', icon: Palette },
   { name: 'Decorations', value: 'Decorations', icon: Lamp },
+  { name: 'Other', value: 'Other', icon: CircleQuestionMark},
 ];
 
 const BruinBuy = () => {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [posts, setPosts] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,8 +30,41 @@ const BruinBuy = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadPosts();
-  }, [filterCategory, filterType, priceRange, searchTerm]);
+    if (token) {
+      fetchUser();
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!showProfile) {
+      loadPosts();
+    }
+  }, [filterCategory, filterType, priceRange, searchTerm, showProfile]);
+
+  const fetchUser = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      } else {
+        logout();
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
+
+  const logout = () => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('token');
+    setShowProfile(false);
+  };
 
   const loadPosts = async () => {
     setLoading(true);
@@ -43,13 +83,18 @@ const BruinBuy = () => {
       setPosts(data || []);
     } catch (error) {
       console.error('Error loading posts:', error);
-      alert('Failed to load posts. Make sure the backend is running on http://localhost:8080');
     } finally {
       setLoading(false);
     }
   };
 
   const createPost = async (postData) => {
+    if (!token) {
+      alert('Please login to create a post');
+      setShowAuthModal(true);
+      return;
+    }
+
     try {
       const payload = {
         ...postData,
@@ -60,6 +105,7 @@ const BruinBuy = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload),
       });
@@ -81,9 +127,16 @@ const BruinBuy = () => {
     try {
       const response = await fetch(`${API_URL}/posts/${postId}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
-      if (!response.ok) throw new Error('Failed to delete post');
+      if (!response.ok) {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete post');
+        return;
+      }
       
       setPosts(posts.filter(p => p.id !== postId));
     } catch (error) {
@@ -98,16 +151,43 @@ const BruinBuy = () => {
       <div className="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-40">
         <div className="px-8 py-6 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold">BruinBuy</h1>
-            {/* <p className="text-blue-100 text-sm mt-1">UCLA Student Marketplace</p> */}
+            <h1 className="text-2xl font-bold">BruinBuy</h1>
+            <p className="text-blue-100 text-sm mt-1">UCLA Student Marketplace</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-md"
-          >
-            <Plus size={20} />
-            Create Post
-          </button>
+          <div className="flex items-center gap-4">
+            {user ? (
+              <>
+                <button
+                  onClick={() => setShowProfile(!showProfile)}
+                  className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <User size={20} />
+                  {user.name}
+                </button>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-md"
+                >
+                  <Plus size={20} />
+                  Create Post
+                </button>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <LogOut size={20} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-md"
+              >
+                <User size={20} />
+                Login / Sign Up
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -140,9 +220,12 @@ const BruinBuy = () => {
                 return (
                   <button
                     key={cat.value}
-                    onClick={() => setFilterCategory(cat.value)}
+                    onClick={() => {
+                      setFilterCategory(cat.value);
+                      setShowProfile(false);
+                    }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${
-                      filterCategory === cat.value
+                      filterCategory === cat.value && !showProfile
                         ? 'bg-blue-600 text-white'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
@@ -194,9 +277,10 @@ const BruinBuy = () => {
 
       {/* Main Content */}
       <div className="flex-1 ml-64 mt-24">
-        {/* Posts Grid */}
         <div className="p-8">
-          {loading ? (
+          {showProfile ? (
+            <ProfilePage user={user} token={token} onDeletePost={deletePost} />
+          ) : loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
               <p className="text-gray-600 mt-4">Loading posts...</p>
@@ -205,7 +289,12 @@ const BruinBuy = () => {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {posts.map(post => (
-                  <PostCard key={post.id} post={post} onDelete={deletePost} />
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    onDelete={deletePost}
+                    canDelete={user && post.user_id === user.id}
+                  />
                 ))}
               </div>
 
@@ -220,18 +309,218 @@ const BruinBuy = () => {
         </div>
       </div>
 
+      {showAuthModal && (
+        <AuthModal 
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={(token, user) => {
+            setToken(token);
+            setUser(user);
+            localStorage.setItem('token', token);
+            setShowAuthModal(false);
+          }}
+        />
+      )}
+
       {showCreateModal && (
         <CreatePostModal
           onClose={() => setShowCreateModal(false)}
           onCreate={createPost}
           categories={categories.filter(c => c.value !== 'all')}
+          token={token}
         />
       )}
     </div>
   );
 };
 
-const PostCard = ({ post, onDelete }) => {
+const ProfilePage = ({ user, token, onDeletePost }) => {
+  const [myPosts, setMyPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadMyPosts();
+  }, []);
+
+  const loadMyPosts = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/my-posts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMyPosts(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (postId) => {
+    await onDeletePost(postId);
+    setMyPosts(myPosts.filter(p => p.id !== postId));
+  };
+
+  return (
+    <div>
+      <div className="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h2>
+        <p className="text-gray-600 mb-4">{user.email}</p>
+        <div className="flex items-center gap-4 text-sm text-gray-500">
+          <span>Name: {user.name}</span>
+          <span>•</span>
+          <span>Total Posts: {myPosts.length}</span>
+        </div>
+      </div>
+
+      <h3 className="text-2xl font-bold text-gray-900 mb-6">My Posts</h3>
+      
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+        </div>
+      ) : myPosts.length === 0 ? (
+        <div className="text-center py-12">
+          <Package size={64} className="mx-auto text-gray-300 mb-4" />
+          <p className="text-gray-500 text-lg">You haven't created any posts yet</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {myPosts.map(post => (
+            <PostCard 
+              key={post.id} 
+              post={post} 
+              onDelete={handleDelete}
+              canDelete={true}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AuthModal = ({ onClose, onSuccess }) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    setError('');
+    setLoading(true);
+
+    if (!formData.email.endsWith('@ucla.edu')) {
+      setError('Please use a @ucla.edu email address');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'An error occurred');
+        setLoading(false);
+        return;
+      }
+
+      onSuccess(data.token, data.user);
+    } catch (error) {
+      setError('Failed to connect to server');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {isLogin ? 'Login' : 'Sign Up'}
+          </h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={24} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">UCLA Email</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              placeholder="yourname@ucla.edu"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+          >
+            {loading ? 'Loading...' : (isLogin ? 'Login' : 'Sign Up')}
+          </button>
+
+          <button
+            onClick={() => setIsLogin(!isLogin)}
+            className="w-full text-blue-600 hover:text-blue-700 text-sm"
+          >
+            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PostCard = ({ post, onDelete, canDelete }) => {
   const [showFullView, setShowFullView] = useState(false);
 
   return (
@@ -263,7 +552,8 @@ const PostCard = ({ post, onDelete }) => {
               </span>
             </div>
             
-            <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.description}</p>
+            <p className="text-gray-600 text-sm mb-2 line-clamp-2">{post.description}</p>
+            <p className="text-xs text-gray-500 mb-3">Posted by: {post.user_name}</p>
             
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1 text-gray-500">
@@ -275,14 +565,16 @@ const PostCard = ({ post, onDelete }) => {
           </div>
         </div>
         
-        <div className="px-4 pb-4">
-          <button
-            onClick={() => onDelete(post.id)}
-            className="w-full bg-red-50 text-red-600 py-2 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
-          >
-            Delete Post
-          </button>
-        </div>
+        {canDelete && (
+          <div className="px-4 pb-4">
+            <button
+              onClick={() => onDelete(post.id)}
+              className="w-full bg-red-50 text-red-600 py-2 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+            >
+              Delete Post
+            </button>
+          </div>
+        )}
       </div>
 
       {showFullView && (
@@ -363,6 +655,12 @@ const PostFullView = ({ post, onClose }) => {
               </span>
             </div>
 
+            <div className="bg-blue-50 rounded-lg p-4">
+              <p className="text-sm text-gray-600">Posted by</p>
+              <p className="font-semibold text-gray-900">{post.user_name}</p>
+              <p className="text-sm text-gray-500">{post.user_email}</p>
+            </div>
+
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
               <p className="text-gray-700 whitespace-pre-wrap">{post.description}</p>
@@ -374,7 +672,7 @@ const PostFullView = ({ post, onClose }) => {
   );
 };
 
-const CreatePostModal = ({ onClose, onCreate, categories }) => {
+const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -403,6 +701,9 @@ const CreatePostModal = ({ onClose, onCreate, categories }) => {
 
         const response = await fetch(`${API_URL}/upload`, {
           method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
           body: formData,
         });
 

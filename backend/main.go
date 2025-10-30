@@ -24,26 +24,28 @@ var jwtSecret = []byte("your-secret-key-change-this-in-production")
 
 // Models
 type User struct {
-	ID        string    `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	Password  string    `json:"-"` // Never send password in JSON
-	CreatedAt time.Time `json:"created_at"`
+	ID                string    `json:"id"`
+	Email             string    `json:"email"`
+	Name              string    `json:"name"`
+	ProfilePictureURL string    `json:"profile_picture_url"`
+	Password          string    `json:"-"` // Never send password in JSON
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type Post struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	UserEmail   string    `json:"user_email"`
-	UserName    string    `json:"user_name"`
-	Title       string    `json:"title" binding:"required"`
-	Description string    `json:"description" binding:"required"`
-	Price       float64   `json:"price" binding:"required"`
-	Category    string    `json:"category" binding:"required"`
-	Type        string    `json:"type" binding:"required"`
-	Location    string    `json:"location"`
-	Media       []Media   `json:"media"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID                    string    `json:"id"`
+	UserID                string    `json:"user_id"`
+	UserEmail             string    `json:"user_email"`
+	UserName              string    `json:"user_name"`
+	UserProfilePictureURL string    `json:"user_profile_picture_url"`
+	Title                 string    `json:"title" binding:"required"`
+	Description           string    `json:"description" binding:"required"`
+	Price                 float64   `json:"price" binding:"required"`
+	Category              string    `json:"category" binding:"required"`
+	Type                  string    `json:"type" binding:"required"`
+	Location              string    `json:"location"`
+	Media                 []Media   `json:"media"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 
 type Media struct {
@@ -83,7 +85,14 @@ func initDB() error {
 	var err error
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
-		connStr = "postgres://postgres:password@localhost/bruinbuy?sslmode=disable"
+		connStr := os.Getenv("DATABASE_URL")
+		if connStr == "" {
+			whoami := os.Getenv("USER")
+			if whoami == "" {
+				whoami = "postgres"
+			}
+			connStr = fmt.Sprintf("postgres://%s@localhost/bruinbuy?sslmode=disable", whoami)
+		}
 	}
 
 	db, err = sql.Open("postgres", connStr)
@@ -131,7 +140,21 @@ func initDB() error {
 	`
 
 	_, err = db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Ensure columns added in later versions exist on older databases
+	if _, err := db.Exec(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS location VARCHAR(255)`); err != nil {
+		return err
+	}
+
+	// Add profile picture column to users if missing
+	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture_url VARCHAR(500)`); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Auth Middleware
@@ -252,9 +275,9 @@ func login(c *gin.Context) {
 	var user User
 	var hashedPassword string
 	err := db.QueryRow(
-		"SELECT id, email, name, password, created_at FROM users WHERE email = $1",
+		"SELECT id, email, name, COALESCE(profile_picture_url, ''), password, created_at FROM users WHERE email = $1",
 		req.Email,
-	).Scan(&user.ID, &user.Email, &user.Name, &hashedPassword, &user.CreatedAt)
+	).Scan(&user.ID, &user.Email, &user.Name, &user.ProfilePictureURL, &hashedPassword, &user.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
@@ -299,9 +322,9 @@ func getMe(c *gin.Context) {
 
 	var user User
 	err := db.QueryRow(
-		"SELECT id, email, name, created_at FROM users WHERE id = $1",
+		"SELECT id, email, name, COALESCE(profile_picture_url, ''), created_at FROM users WHERE id = $1",
 		userID,
-	).Scan(&user.ID, &user.Email, &user.Name, &user.CreatedAt)
+	).Scan(&user.ID, &user.Email, &user.Name, &user.ProfilePictureURL, &user.CreatedAt)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
@@ -315,7 +338,7 @@ func getMyPosts(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	rows, err := db.Query(
-		`SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.location, p.created_at 
+		`SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), p.created_at 
 		FROM posts p 
 		JOIN users u ON p.user_id = u.id 
 		WHERE p.user_id = $1 
@@ -331,7 +354,7 @@ func getMyPosts(c *gin.Context) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -377,7 +400,7 @@ func createPost(c *gin.Context) {
 	}
 
 	// Get user info
-	err := db.QueryRow("SELECT email, name FROM users WHERE id = $1", post.UserID).Scan(&post.UserEmail, &post.UserName)
+	err := db.QueryRow("SELECT email, name, COALESCE(profile_picture_url, '') FROM users WHERE id = $1", post.UserID).Scan(&post.UserEmail, &post.UserName, &post.UserProfilePictureURL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user info"})
 		return
@@ -388,6 +411,7 @@ func createPost(c *gin.Context) {
 		post.ID, post.UserID, post.Title, post.Description, post.Price, post.Category, post.Type, post.Location, post.CreatedAt,
 	)
 	if err != nil {
+		log.Printf("createPost insert error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create post"})
 		return
 	}
@@ -413,7 +437,7 @@ func getPosts(c *gin.Context) {
 	minPrice := c.Query("min_price")
 	maxPrice := c.Query("max_price")
 
-	query := `SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.location, p.created_at 
+	query := `SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), p.created_at 
 			  FROM posts p 
 			  JOIN users u ON p.user_id = u.id 
 			  WHERE 1=1`
@@ -466,7 +490,7 @@ func getPosts(c *gin.Context) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -498,12 +522,12 @@ func getPost(c *gin.Context) {
 
 	var post Post
 	err := db.QueryRow(
-		`SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.location, p.created_at 
+		`SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), p.created_at 
 		FROM posts p 
 		JOIN users u ON p.user_id = u.id 
 		WHERE p.id = $1`,
 		postID,
-	).Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
+	).Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
@@ -584,9 +608,9 @@ func uploadMedia(c *gin.Context) {
 
 	uploadDir := "./uploads"
 	os.MkdirAll(uploadDir, os.ModePerm)
-	filepath := filepath.Join(uploadDir, filename)
+	filePath := filepath.Join(uploadDir, filename)
 
-	dst, err := os.Create(filepath)
+	dst, err := os.Create(filePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
@@ -603,6 +627,57 @@ func uploadMedia(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"url":  url,
 		"type": contentType,
+	})
+}
+
+func uploadProfilePicture(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	c.Request.ParseMultipartForm(10 << 20)
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no file uploaded"})
+		return
+	}
+	defer file.Close()
+
+	contentType := header.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only images allowed"})
+		return
+	}
+
+	ext := filepath.Ext(header.Filename)
+	filename := "profile_" + userID + "_" + uuid.New().String() + ext
+
+	uploadDir := "./uploads/profiles"
+	os.MkdirAll(uploadDir, os.ModePerm)
+	filePath := filepath.Join(uploadDir, filename)
+
+	dst, err := os.Create(filePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		return
+	}
+	defer dst.Close()
+
+	if _, err = io.Copy(dst, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		return
+	}
+
+	profileURL := fmt.Sprintf("/uploads/profiles/%s", filename)
+
+	// Update user's profile picture in database
+	_, err = db.Exec("UPDATE users SET profile_picture_url = $1 WHERE id = $2", profileURL, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update profile picture"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"url": profileURL,
 	})
 }
 
@@ -641,6 +716,7 @@ func main() {
 			protected.POST("/posts", createPost)
 			protected.DELETE("/posts/:id", deletePost)
 			protected.POST("/upload", uploadMedia)
+			protected.POST("/upload-profile-picture", uploadProfilePicture)
 		}
 	}
 

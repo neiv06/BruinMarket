@@ -342,6 +342,7 @@ const BruinBuy = () => {
 const ProfilePage = ({ user, token, onDeletePost }) => {
   const [myPosts, setMyPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
 
   useEffect(() => {
     loadMyPosts();
@@ -370,15 +371,90 @@ const ProfilePage = ({ user, token, onDeletePost }) => {
     setMyPosts(myPosts.filter(p => p.id !== postId));
   };
 
+  const handleProfilePictureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image must be less than 10MB');
+      return;
+    }
+
+    setUploadingPicture(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API_URL}/upload-profile-picture`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const data = await response.json();
+      
+      // Update user state with new profile picture
+      user.profile_picture_url = data.url;
+      window.location.reload(); // Reload to update all instances
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      alert('Failed to upload profile picture');
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
+
   return (
     <div>
       <div className="bg-white rounded-lg shadow-md p-8 mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h2>
-        <p className="text-gray-600 mb-4">{user.name}</p>
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>Name: {user.email}</span>
-          <span>•</span>
-          <span>Total Posts: {myPosts.length}</span>
+        <div className="flex items-start gap-6">
+          {/* Profile Picture */}
+          <div className="relative">
+            {user.profile_picture_url ? (
+              <img 
+                src={`http://localhost:8080${user.profile_picture_url}`} 
+                alt={user.name}
+                className="w-32 h-32 rounded-full object-cover border-4 border-blue-200"
+              />
+            ) : (
+              <div className="w-32 h-32 rounded-full bg-blue-200 flex items-center justify-center border-4 border-blue-300">
+                <User size={48} className="text-blue-600" />
+              </div>
+            )}
+            <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition-colors">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureUpload}
+                className="hidden"
+                disabled={uploadingPicture}
+              />
+              {uploadingPicture ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+              ) : (
+                <Upload size={20} />
+              )}
+            </label>
+          </div>
+
+          {/* User Info */}
+          <div className="flex-1">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">{user.name}</h2>
+            <p className="text-gray-600 mb-4">{user.email}</p>
+            <div className="flex items-center gap-4 text-sm text-gray-500">
+              <span>Total Posts: {myPosts.length}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -533,7 +609,7 @@ const PostCard = ({ post, onDelete, canDelete }) => {
     <>
       <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer">
         <div onClick={() => setShowFullView(true)}>
-          {post.media && post.media.length > 0 && (
+          {post.media && post.media.length > 0 ? (
             <div className="relative h-48 bg-gray-200">
               {post.media[0].type.startsWith('image/') ? (
                 <img src={`http://localhost:8080${post.media[0].url}`} alt={post.title} className="w-full h-full object-cover" />
@@ -546,6 +622,8 @@ const PostCard = ({ post, onDelete, canDelete }) => {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="relative h-32 bg-gray-100" />
           )}
 
           <div className="p-4">
@@ -559,7 +637,23 @@ const PostCard = ({ post, onDelete, canDelete }) => {
             </div>
             
             <p className="text-gray-600 text-sm mb-2 line-clamp-2">{post.description}</p>
-            <p className="text-xs text-gray-500 mb-3">Posted by: {post.user_name}</p>
+            
+            {/* User info with profile picture */}
+            <div className="flex items-center gap-2 mb-3">
+              {post.user_profile_picture_url ? (
+                <img 
+                  src={`http://localhost:8080${post.user_profile_picture_url}`} 
+                  alt={post.user_name}
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center">
+                  <User size={14} className="text-blue-600" />
+                </div>
+              )}
+              <p className="text-xs text-gray-500">{post.user_name}</p>
+            </div>
+
             {post.location && (
               <p className="text-xs text-gray-500 mb-2">📍 {post.location}</p>
             )}
@@ -669,13 +763,27 @@ const PostFullView = ({ post, onClose }) => {
             </div>
 
             <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-sm text-gray-600">Posted by</p>
-              <p className="font-semibold text-gray-900">{post.user_name}</p>
-              {post.location && (
-                <p className="text-sm text-gray-500 mt-1">📍 {post.location}</p>
+            <div className="flex items-center gap-3">
+              {post.user_profile_picture_url ? (
+                <img 
+                  src={`http://localhost:8080${post.user_profile_picture_url}`} 
+                  alt={post.user_name}
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center">
+                  <User size={24} className="text-blue-600" />
+                </div>
               )}
+              <div>
+                <p className="text-sm text-gray-600">Posted by</p>
+                <p className="font-semibold text-gray-900">{post.user_name}</p>
+              </div>
             </div>
-
+            {post.location && (
+              <p className="text-sm text-gray-500 mt-2">📍 {post.location}</p>
+            )}
+          </div>
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
               <p className="text-gray-700 whitespace-pre-wrap">{post.description}</p>

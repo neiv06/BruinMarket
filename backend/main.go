@@ -85,14 +85,11 @@ func initDB() error {
 	var err error
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
-		connStr := os.Getenv("DATABASE_URL")
-		if connStr == "" {
-			whoami := os.Getenv("USER")
-			if whoami == "" {
-				whoami = "postgres"
-			}
-			connStr = fmt.Sprintf("postgres://%s@localhost/bruinbuy?sslmode=disable", whoami)
+		whoami := os.Getenv("USER")
+		if whoami == "" {
+			whoami = "postgres"
 		}
+		connStr = fmt.Sprintf("postgres://%s@localhost/bruinbuy?sslmode=disable", whoami)
 	}
 
 	db, err = sql.Open("postgres", connStr)

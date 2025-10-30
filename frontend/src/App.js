@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X, Upload, DollarSign, Tag, Package, Dumbbell, ShoppingBag, Laptop, Ticket, Palette, Lamp, Shirt, NotebookPen, CircleQuestionMark, Grid3x3, User, LogOut } from 'lucide-react';
+import { Search, Plus, X, Upload, DollarSign, Tag, Package, Dumbbell, Laptop, Ticket, Palette, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints } from 'lucide-react';
+import logo from './BruinBuyTransparent.svg';
 
 const API_URL = 'http://localhost:8080/api';
 
 const categories = [
   { name: 'All', value: 'all', icon: Grid3x3 },
-  { name: 'Clothing', value:'Clothing', icon: Shirt },
-  { name: 'Shoes', value: 'Shoes', icon: ShoppingBag },
-  { name: 'Electronics', value: 'Tech', icon: Laptop },
-  { name: 'Class Supplies', value: 'Class Supplies', icon: NotebookPen},
+  { name: 'Clothing', value: 'Clothing', icon: Shirt },
   { name: 'Sports Equipment', value: 'Sports Equipment', icon: Dumbbell },
+  { name: 'Shoes', value: 'Shoes', icon: Footprints },
+  { name: 'Class Supplies', value: 'Class Supplies', icon: NotebookPen },
+  { name: 'Electronics', value: 'Electronics', icon: Laptop },
   { name: 'Tickets', value: 'Tickets', icon: Ticket },
   { name: 'Art', value: 'Art', icon: Palette },
   { name: 'Decorations', value: 'Decorations', icon: Lamp },
-  { name: 'Other', value: 'Other', icon: CircleQuestionMark},
+  { name: 'Other', value: 'Other', icon: CircleQuestionMark },
 ];
 
 const BruinBuy = () => {
@@ -149,10 +150,13 @@ const BruinBuy = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       {/* Header - Full Width */}
       <div className="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-40">
-        <div className="px-8 py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">BruinBuy</h1>
-            <p className="text-blue-100 text-sm mt-1">UCLA Student Marketplace</p>
+        <div className="px-8 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <img src={logo} alt="BruinBuy Logo" className="h-20 w-20" />
+            <div>
+              <h1 className="text-3xl font-bold">BruinBuy</h1>
+              <p className="text-blue-100 text-sm mt-1">UCLA Student Marketplace</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             {user ? (
@@ -192,9 +196,11 @@ const BruinBuy = () => {
       </div>
 
       {/* Fixed Left Sidebar */}
-      <div className="w-64 bg-white shadow-lg fixed left-0 top-24 bottom-0 overflow-y-auto">
+      <div className="w-64 bg-white shadow-lg fixed left-0 top-[100px] bottom-0 overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-blue-600 mb-6">Marketplace</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-2xl font-bold text-blue-600">Marketplace</h2>
+          </div>
           
           {/* Search */}
           <div className="mb-6">
@@ -276,7 +282,7 @@ const BruinBuy = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 ml-64 mt-24">
+      <div className="flex-1 ml-64 mt-[100px]">
         <div className="p-8">
           {showProfile ? (
             <ProfilePage user={user} token={token} onDeletePost={deletePost} />
@@ -368,9 +374,9 @@ const ProfilePage = ({ user, token, onDeletePost }) => {
     <div>
       <div className="bg-white rounded-lg shadow-md p-8 mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h2>
-        <p className="text-gray-600 mb-4">{user.email}</p>
+        <p className="text-gray-600 mb-4">{user.name}</p>
         <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>Name: {user.name}</span>
+          <span>Name: {user.email}</span>
           <span>•</span>
           <span>Total Posts: {myPosts.length}</span>
         </div>
@@ -554,13 +560,18 @@ const PostCard = ({ post, onDelete, canDelete }) => {
             
             <p className="text-gray-600 text-sm mb-2 line-clamp-2">{post.description}</p>
             <p className="text-xs text-gray-500 mb-3">Posted by: {post.user_name}</p>
+            {post.location && (
+              <p className="text-xs text-gray-500 mb-2">📍 {post.location}</p>
+            )}
             
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1 text-gray-500">
                 <Tag size={16} />
                 {post.category}
               </span>
-              <span className="text-xl font-bold text-blue-600">${post.price}</span>
+              <span className="text-xl font-bold text-blue-600">
+                {post.type === 'buying' ? 'Will Pay: ' : ''}${post.price}
+              </span>
             </div>
           </div>
         </div>
@@ -645,7 +656,9 @@ const PostFullView = ({ post, onClose }) => {
               }`}>
                 {post.type === 'selling' ? 'Selling' : 'Looking to Buy'}
               </span>
-              <span className="text-3xl font-bold text-blue-600">${post.price}</span>
+              <span className="text-3xl font-bold text-blue-600">
+                {post.type === 'buying' ? 'Willing to Pay: ' : ''}${post.price}
+              </span>
             </div>
 
             <div>
@@ -658,7 +671,9 @@ const PostFullView = ({ post, onClose }) => {
             <div className="bg-blue-50 rounded-lg p-4">
               <p className="text-sm text-gray-600">Posted by</p>
               <p className="font-semibold text-gray-900">{post.user_name}</p>
-              <p className="text-sm text-gray-500">{post.user_email}</p>
+              {post.location && (
+                <p className="text-sm text-gray-500 mt-1">📍 {post.location}</p>
+              )}
             </div>
 
             <div>
@@ -679,6 +694,7 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
     price: '',
     category: categories[0].value,
     type: 'selling',
+    location: '',
     media: []
   });
   const [uploading, setUploading] = useState(false);
@@ -804,7 +820,9 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Price ($) *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {formData.type === 'buying' ? 'Willing to Pay ($)' : 'Price ($)'} *
+            </label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
@@ -819,11 +837,22 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+            <input
+              type="text"
+              value={formData.location}
+              onChange={(e) => setFormData({...formData, location: e.target.value})}
+              placeholder="e.g., Hedrick Hall, Rieber Vista, 433 Midvale Ave, etc."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
-              placeholder="Describe the item..."
+              placeholder={formData.type === 'buying' ? 'Describe what you want...' : 'Describe the item...'}
               rows={4}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />

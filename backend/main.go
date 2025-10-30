@@ -41,6 +41,7 @@ type Post struct {
 	Price       float64   `json:"price" binding:"required"`
 	Category    string    `json:"category" binding:"required"`
 	Type        string    `json:"type" binding:"required"`
+	Location    string    `json:"location"`
 	Media       []Media   `json:"media"`
 	CreatedAt   time.Time `json:"created_at"`
 }
@@ -111,6 +112,7 @@ func initDB() error {
 		price DECIMAL(10,2) NOT NULL,
 		category VARCHAR(100) NOT NULL,
 		type VARCHAR(50) NOT NULL,
+		location VARCHAR(255),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -313,7 +315,7 @@ func getMyPosts(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	rows, err := db.Query(
-		`SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.created_at 
+		`SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.location, p.created_at 
 		FROM posts p 
 		JOIN users u ON p.user_id = u.id 
 		WHERE p.user_id = $1 
@@ -329,7 +331,7 @@ func getMyPosts(c *gin.Context) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.CreatedAt)
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -382,8 +384,8 @@ func createPost(c *gin.Context) {
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO posts (id, user_id, title, description, price, category, type, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-		post.ID, post.UserID, post.Title, post.Description, post.Price, post.Category, post.Type, post.CreatedAt,
+		"INSERT INTO posts (id, user_id, title, description, price, category, type, location, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		post.ID, post.UserID, post.Title, post.Description, post.Price, post.Category, post.Type, post.Location, post.CreatedAt,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create post"})
@@ -411,7 +413,7 @@ func getPosts(c *gin.Context) {
 	minPrice := c.Query("min_price")
 	maxPrice := c.Query("max_price")
 
-	query := `SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.created_at 
+	query := `SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.location, p.created_at 
 			  FROM posts p 
 			  JOIN users u ON p.user_id = u.id 
 			  WHERE 1=1`
@@ -464,7 +466,7 @@ func getPosts(c *gin.Context) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.CreatedAt)
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -496,12 +498,12 @@ func getPost(c *gin.Context) {
 
 	var post Post
 	err := db.QueryRow(
-		`SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.created_at 
+		`SELECT p.id, p.user_id, u.email, u.name, p.title, p.description, p.price, p.category, p.type, p.location, p.created_at 
 		FROM posts p 
 		JOIN users u ON p.user_id = u.id 
 		WHERE p.id = $1`,
 		postID,
-	).Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.CreatedAt)
+	).Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})

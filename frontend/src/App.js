@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X, Upload, DollarSign, Tag, Package, Dumbbell, Laptop, Ticket, Palette, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints } from 'lucide-react';
+import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Palette, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle } from 'lucide-react';
 import logo from './BruinBuyTransparent.svg';
+import Chat from './Chat.js'
 
 const API_URL = 'http://localhost:8080/api';
 
@@ -12,6 +13,7 @@ const categories = [
   { name: 'Class Supplies', value: 'Class Supplies', icon: NotebookPen },
   { name: 'Electronics', value: 'Electronics', icon: Laptop },
   { name: 'Tickets', value: 'Tickets', icon: Ticket },
+  { name: 'Parking Spots', value: 'Parking Spots', icon: CircleParking },
   { name: 'Art', value: 'Art', icon: Palette },
   { name: 'Decorations', value: 'Decorations', icon: Lamp },
   { name: 'Other', value: 'Other', icon: CircleQuestionMark },
@@ -29,6 +31,7 @@ const BruinBuy = () => {
   const [filterType, setFilterType] = useState('all');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [loading, setLoading] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -96,11 +99,16 @@ const BruinBuy = () => {
       return;
     }
 
+    console.log('Token:', token); // ADD THIS
+    console.log('Post Data:', postData); // ADD THIS
+
     try {
       const payload = {
         ...postData,
         price: parseFloat(postData.price)
       };
+
+      console.log('Payload:', payload); // ADD THIS
 
       const response = await fetch(`${API_URL}/posts`, {
         method: 'POST',
@@ -111,7 +119,13 @@ const BruinBuy = () => {
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error('Failed to create post');
+      console.log('Response status:', response.status); // ADD THIS
+
+      if (!response.ok) {
+        const errorData = await response.json(); // ADD THIS
+        console.log('Error data:', errorData); // ADD THIS  
+        throw new Error(errorData.error || 'Failed to create post');
+      }
       
       const newPost = await response.json();
       setPosts([newPost, ...posts]);
@@ -167,6 +181,13 @@ const BruinBuy = () => {
                 >
                   <User size={20} />
                   {user.name}
+                </button>
+                <button
+                  onClick={() => setShowChat(true)}
+                  className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <MessageCircle size={20} />
+                  Messages
                 </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
@@ -300,6 +321,7 @@ const BruinBuy = () => {
                     post={post} 
                     onDelete={deletePost}
                     canDelete={user && post.user_id === user.id}
+                    token={token}
                   />
                 ))}
               </div>
@@ -333,6 +355,13 @@ const BruinBuy = () => {
           onCreate={createPost}
           categories={categories.filter(c => c.value !== 'all')}
           token={token}
+        />
+      )}
+      {showChat && (
+        <Chat
+          user={user}
+          token={token}
+          onClose={() => setShowChat(false)} 
         />
       )}
     </div>
@@ -602,7 +631,7 @@ const AuthModal = ({ onClose, onSuccess }) => {
   );
 };
 
-const PostCard = ({ post, onDelete, canDelete }) => {
+const PostCard = ({ post, onDelete, canDelete, token }) => {
   const [showFullView, setShowFullView] = useState(false);
 
   return (
@@ -664,7 +693,7 @@ const PostCard = ({ post, onDelete, canDelete }) => {
                 {post.category}
               </span>
               <span className="text-xl font-bold text-blue-600">
-                {post.type === 'buying' ? 'Will Pay: ' : ''}${post.price}
+              {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Will Pay: ' : ''}$${post.price}`}
               </span>
             </div>
           </div>
@@ -689,7 +718,7 @@ const PostCard = ({ post, onDelete, canDelete }) => {
   );
 };
 
-const PostFullView = ({ post, onClose }) => {
+const PostFullView = ({ post, token, onClose }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
   return (
@@ -751,7 +780,7 @@ const PostFullView = ({ post, onClose }) => {
                 {post.type === 'selling' ? 'Selling' : 'Looking to Buy'}
               </span>
               <span className="text-3xl font-bold text-blue-600">
-                {post.type === 'buying' ? 'Willing to Pay: ' : ''}${post.price}
+              {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Willing to Pay: ' : ''}$${post.price}`}
               </span>
             </div>
 
@@ -775,10 +804,33 @@ const PostFullView = ({ post, onClose }) => {
                   <User size={24} className="text-blue-600" />
                 </div>
               )}
-              <div>
+              <div className="flex-1">
                 <p className="text-sm text-gray-600">Posted by</p>
                 <p className="font-semibold text-gray-900">{post.user_name}</p>
               </div>
+              <button
+                onClick={async () => {
+                  // Create/get conversation and open chat
+                  try {
+                    const response = await fetch(`${API_URL}/conversations/${post.user_id}`, {
+                      headers: {
+                        'Authorization': `Bearer ${token}`
+                      }
+                    });
+                    if (response.ok) {
+                      onClose();
+                      // You'll need to pass a callback to open chat with this conversation
+                      window.location.reload(); // Temporary - reload to show in messages
+                    }
+                  } catch (error) {
+                    console.error('Error creating conversation:', error);
+                  }
+                }}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <MessageCircle size={20} />
+                Message
+              </button>
             </div>
             {post.location && (
               <p className="text-sm text-gray-500 mt-2">📍 {post.location}</p>
@@ -859,8 +911,12 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
   };
 
   const handleSubmit = () => {
-    if (!formData.title || !formData.description || !formData.price) {
+    if (!formData.title || !formData.description || formData.price === '') {
       alert('Please fill in all required fields');
+      return;
+    }
+    if (parseFloat(formData.price) < 0) {
+      alert('Price cannot be negative');
       return;
     }
     onCreate(formData);

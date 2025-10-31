@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -10,17 +11,79 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var jwtSecret = []byte("your-secret-key-change-this-in-production")
+
+// WebSocket upgrader
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+// WebSocket client management
+type Client struct {
+	UserID string
+	Conn   *websocket.Conn
+	Send   chan []byte
+}
+
+type Hub struct {
+	Clients    map[string]*Client
+	Broadcast  chan []byte
+	Register   chan *Client
+	Unregister chan *Client
+	mu         sync.RWMutex
+}
+
+var hub = &Hub{
+	Clients:    make(map[string]*Client),
+	Broadcast:  make(chan []byte),
+	Register:   make(chan *Client),
+	Unregister: make(chan *Client),
+}
+
+func (h *Hub) Run() {
+	for {
+		select {
+		case client := <-h.Register:
+			h.mu.Lock()
+			h.Clients[client.UserID] = client
+			h.mu.Unlock()
+
+		case client := <-h.Unregister:
+			h.mu.Lock()
+			if _, ok := h.Clients[client.UserID]; ok {
+				delete(h.Clients, client.UserID)
+				close(client.Send)
+			}
+			h.mu.Unlock()
+
+		case message := <-h.Broadcast:
+			h.mu.RLock()
+			for _, client := range h.Clients {
+				select {
+				case client.Send <- message:
+				default:
+					close(client.Send)
+					delete(h.Clients, client.UserID)
+				}
+			}
+			h.mu.RUnlock()
+		}
+	}
+}
 
 // Models
 type User struct {
@@ -28,7 +91,7 @@ type User struct {
 	Email             string    `json:"email"`
 	Name              string    `json:"name"`
 	ProfilePictureURL string    `json:"profile_picture_url"`
-	Password          string    `json:"-"` // Never send password in JSON
+	Password          string    `json:"-"`
 	CreatedAt         time.Time `json:"created_at"`
 }
 
@@ -40,7 +103,7 @@ type Post struct {
 	UserProfilePictureURL string    `json:"user_profile_picture_url"`
 	Title                 string    `json:"title" binding:"required"`
 	Description           string    `json:"description" binding:"required"`
-	Price                 float64   `json:"price" binding:"required"`
+	Price                 float64   `json:"price"`
 	Category              string    `json:"category" binding:"required"`
 	Type                  string    `json:"type" binding:"required"`
 	Location              string    `json:"location"`
@@ -54,6 +117,29 @@ type Media struct {
 	URL    string `json:"url"`
 	Type   string `json:"type"`
 	Order  int    `json:"order"`
+}
+
+type Conversation struct {
+	ID              string    `json:"id"`
+	User1ID         string    `json:"user1_id"`
+	User2ID         string    `json:"user2_id"`
+	User1Name       string    `json:"user1_name"`
+	User2Name       string    `json:"user2_name"`
+	User1PictureURL string    `json:"user1_picture_url"`
+	User2PictureURL string    `json:"user2_picture_url"`
+	LastMessage     string    `json:"last_message"`
+	LastMessageTime time.Time `json:"last_message_time"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+type Message struct {
+	ID             string    `json:"id"`
+	ConversationID string    `json:"conversation_id"`
+	SenderID       string    `json:"sender_id"`
+	ReceiverID     string    `json:"receiver_id"`
+	Content        string    `json:"content"`
+	CreatedAt      time.Time `json:"created_at"`
+	Read           bool      `json:"read"`
 }
 
 type LoginRequest struct {
@@ -76,6 +162,16 @@ type Claims struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 	jwt.RegisteredClaims
+}
+
+type WSMessage struct {
+	Type           string    `json:"type"`
+	ConversationID string    `json:"conversation_id"`
+	SenderID       string    `json:"sender_id"`
+	ReceiverID     string    `json:"receiver_id"`
+	Content        string    `json:"content"`
+	MessageID      string    `json:"message_id"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // Database
@@ -130,10 +226,33 @@ func initDB() error {
 		order_index INTEGER NOT NULL
 	);
 
+	CREATE TABLE IF NOT EXISTS conversations (
+		id VARCHAR(255) PRIMARY KEY,
+		user1_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+		user2_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+		last_message TEXT,
+		last_message_time TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user1_id, user2_id)
+	);
+
+	CREATE TABLE IF NOT EXISTS messages (
+		id VARCHAR(255) PRIMARY KEY,
+		conversation_id VARCHAR(255) REFERENCES conversations(id) ON DELETE CASCADE,
+		sender_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+		receiver_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+		content TEXT NOT NULL,
+		read BOOLEAN DEFAULT FALSE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
 	CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category);
 	CREATE INDEX IF NOT EXISTS idx_posts_type ON posts(type);
 	CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_conversations_users ON conversations(user1_id, user2_id);
+	CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+	CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
 	`
 
 	_, err = db.Exec(schema)
@@ -141,12 +260,10 @@ func initDB() error {
 		return err
 	}
 
-	// Ensure columns added in later versions exist on older databases
 	if _, err := db.Exec(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS location VARCHAR(255)`); err != nil {
 		return err
 	}
 
-	// Add profile picture column to users if missing
 	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture_url VARCHAR(500)`); err != nil {
 		return err
 	}
@@ -188,7 +305,261 @@ func authMiddleware() gin.HandlerFunc {
 	}
 }
 
-// Auth Handlers
+// WebSocket handler
+func handleWebSocket(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("WebSocket upgrade error: %v", err)
+		return
+	}
+
+	client := &Client{
+		UserID: userID,
+		Conn:   conn,
+		Send:   make(chan []byte, 256),
+	}
+
+	hub.Register <- client
+
+	// Send authentication success
+	authMsg, _ := json.Marshal(map[string]string{"type": "auth_success"})
+	client.Send <- authMsg
+
+	go client.writePump()
+	go client.readPump()
+}
+
+func (c *Client) readPump() {
+	defer func() {
+		hub.Unregister <- c
+		c.Conn.Close()
+	}()
+
+	for {
+		_, message, err := c.Conn.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		var wsMsg WSMessage
+		if err := json.Unmarshal(message, &wsMsg); err != nil {
+			log.Printf("Error unmarshaling message: %v", err)
+			continue
+		}
+
+		if wsMsg.Type == "message" {
+			// Save message to database
+			messageID := uuid.New().String()
+			now := time.Now()
+
+			_, err := db.Exec(
+				"INSERT INTO messages (id, conversation_id, sender_id, receiver_id, content, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+				messageID, wsMsg.ConversationID, wsMsg.SenderID, wsMsg.ReceiverID, wsMsg.Content, now,
+			)
+			if err != nil {
+				log.Printf("Error saving message: %v", err)
+				continue
+			}
+
+			// Update conversation last message
+			_, err = db.Exec(
+				"UPDATE conversations SET last_message = $1, last_message_time = $2 WHERE id = $3",
+				wsMsg.Content, now, wsMsg.ConversationID,
+			)
+			if err != nil {
+				log.Printf("Error updating conversation: %v", err)
+			}
+
+			wsMsg.MessageID = messageID
+			wsMsg.CreatedAt = now
+
+			// Send to receiver
+			hub.mu.RLock()
+			if receiverClient, ok := hub.Clients[wsMsg.ReceiverID]; ok {
+				msgBytes, _ := json.Marshal(wsMsg)
+				select {
+				case receiverClient.Send <- msgBytes:
+				default:
+					close(receiverClient.Send)
+					delete(hub.Clients, wsMsg.ReceiverID)
+				}
+			}
+			hub.mu.RUnlock()
+
+			// Send back to sender (confirmation)
+			msgBytes, _ := json.Marshal(wsMsg)
+			c.Send <- msgBytes
+		}
+	}
+}
+
+func (c *Client) writePump() {
+	defer func() {
+		c.Conn.Close()
+	}()
+
+	for message := range c.Send {
+		if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			return
+		}
+	}
+}
+
+// Chat Handlers
+func getOrCreateConversation(c *gin.Context) {
+	userID := c.GetString("user_id")
+	otherUserID := c.Param("user_id")
+
+	if userID == otherUserID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot create conversation with yourself"})
+		return
+	}
+
+	// Ensure consistent ordering
+	user1ID, user2ID := userID, otherUserID
+	if userID > otherUserID {
+		user1ID, user2ID = otherUserID, userID
+	}
+
+	var conversation Conversation
+	err := db.QueryRow(
+		`SELECT c.id, c.user1_id, c.user2_id, u1.name, u2.name, 
+		 COALESCE(u1.profile_picture_url, ''), COALESCE(u2.profile_picture_url, ''),
+		 COALESCE(c.last_message, ''), COALESCE(c.last_message_time, c.created_at), c.created_at
+		 FROM conversations c
+		 JOIN users u1 ON c.user1_id = u1.id
+		 JOIN users u2 ON c.user2_id = u2.id
+		 WHERE (c.user1_id = $1 AND c.user2_id = $2) OR (c.user1_id = $2 AND c.user2_id = $1)`,
+		user1ID, user2ID,
+	).Scan(&conversation.ID, &conversation.User1ID, &conversation.User2ID,
+		&conversation.User1Name, &conversation.User2Name,
+		&conversation.User1PictureURL, &conversation.User2PictureURL,
+		&conversation.LastMessage, &conversation.LastMessageTime, &conversation.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		// Create new conversation
+		conversationID := uuid.New().String()
+		now := time.Now()
+
+		_, err = db.Exec(
+			"INSERT INTO conversations (id, user1_id, user2_id, created_at) VALUES ($1, $2, $3, $4)",
+			conversationID, user1ID, user2ID, now,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create conversation"})
+			return
+		}
+
+		// Fetch the new conversation
+		db.QueryRow(
+			`SELECT c.id, c.user1_id, c.user2_id, u1.name, u2.name,
+			 COALESCE(u1.profile_picture_url, ''), COALESCE(u2.profile_picture_url, ''),
+			 COALESCE(c.last_message, ''), COALESCE(c.last_message_time, c.created_at), c.created_at
+			 FROM conversations c
+			 JOIN users u1 ON c.user1_id = u1.id
+			 JOIN users u2 ON c.user2_id = u2.id
+			 WHERE c.id = $1`,
+			conversationID,
+		).Scan(&conversation.ID, &conversation.User1ID, &conversation.User2ID,
+			&conversation.User1Name, &conversation.User2Name,
+			&conversation.User1PictureURL, &conversation.User2PictureURL,
+			&conversation.LastMessage, &conversation.LastMessageTime, &conversation.CreatedAt)
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, conversation)
+}
+
+func getConversations(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	rows, err := db.Query(
+		`SELECT c.id, c.user1_id, c.user2_id, u1.name, u2.name,
+		 COALESCE(u1.profile_picture_url, ''), COALESCE(u2.profile_picture_url, ''),
+		 COALESCE(c.last_message, ''), COALESCE(c.last_message_time, c.created_at), c.created_at
+		 FROM conversations c
+		 JOIN users u1 ON c.user1_id = u1.id
+		 JOIN users u2 ON c.user2_id = u2.id
+		 WHERE c.user1_id = $1 OR c.user2_id = $1
+		 ORDER BY COALESCE(c.last_message_time, c.created_at) DESC`,
+		userID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch conversations"})
+		return
+	}
+	defer rows.Close()
+
+	conversations := []Conversation{}
+	for rows.Next() {
+		var conv Conversation
+		rows.Scan(&conv.ID, &conv.User1ID, &conv.User2ID,
+			&conv.User1Name, &conv.User2Name,
+			&conv.User1PictureURL, &conv.User2PictureURL,
+			&conv.LastMessage, &conv.LastMessageTime, &conv.CreatedAt)
+		conversations = append(conversations, conv)
+	}
+
+	c.JSON(http.StatusOK, conversations)
+}
+
+func getMessages(c *gin.Context) {
+	userID := c.GetString("user_id")
+	conversationID := c.Param("conversation_id")
+
+	// Verify user is part of conversation
+	var count int
+	err := db.QueryRow(
+		"SELECT COUNT(*) FROM conversations WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)",
+		conversationID, userID,
+	).Scan(&count)
+
+	if err != nil || count == 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	rows, err := db.Query(
+		`SELECT id, conversation_id, sender_id, receiver_id, content, read, created_at
+		 FROM messages
+		 WHERE conversation_id = $1
+		 ORDER BY created_at ASC`,
+		conversationID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch messages"})
+		return
+	}
+	defer rows.Close()
+
+	messages := []Message{}
+	for rows.Next() {
+		var msg Message
+		rows.Scan(&msg.ID, &msg.ConversationID, &msg.SenderID, &msg.ReceiverID, &msg.Content, &msg.Read, &msg.CreatedAt)
+		messages = append(messages, msg)
+	}
+
+	// Mark messages as read
+	_, err = db.Exec(
+		"UPDATE messages SET read = TRUE WHERE conversation_id = $1 AND receiver_id = $2 AND read = FALSE",
+		conversationID, userID,
+	)
+	if err != nil {
+		log.Printf("Error marking messages as read: %v", err)
+	}
+
+	c.JSON(http.StatusOK, messages)
+}
+
+// Auth Handlers (keeping existing code)
 func register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -196,13 +567,11 @@ func register(c *gin.Context) {
 		return
 	}
 
-	// Validate UCLA email
 	if !strings.HasSuffix(strings.ToLower(req.Email), "@ucla.edu") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "must use a @ucla.edu email address"})
 		return
 	}
 
-	// Check if user exists
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", req.Email).Scan(&exists)
 	if err != nil {
@@ -214,14 +583,12 @@ func register(c *gin.Context) {
 		return
 	}
 
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
 		return
 	}
 
-	// Create user
 	userID := uuid.New().String()
 	_, err = db.Exec(
 		"INSERT INTO users (id, email, name, password, created_at) VALUES ($1, $2, $3, $4, $5)",
@@ -232,12 +599,11 @@ func register(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		UserID: userID,
 		Email:  req.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)), // 7 days
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	})
@@ -268,7 +634,6 @@ func login(c *gin.Context) {
 		return
 	}
 
-	// Get user
 	var user User
 	var hashedPassword string
 	err := db.QueryRow(
@@ -285,14 +650,12 @@ func login(c *gin.Context) {
 		return
 	}
 
-	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(req.Password))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
 		return
 	}
 
-	// Generate JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		UserID: user.ID,
 		Email:  user.Email,
@@ -356,7 +719,6 @@ func getMyPosts(c *gin.Context) {
 			continue
 		}
 
-		// Fetch media
 		mediaRows, err := db.Query(
 			"SELECT id, url, type, order_index FROM media WHERE post_id = $1 ORDER BY order_index",
 			post.ID,
@@ -379,11 +741,16 @@ func getMyPosts(c *gin.Context) {
 	c.JSON(http.StatusOK, posts)
 }
 
-// Post Handlers
+// Post Handlers (existing)
 func createPost(c *gin.Context) {
 	var post Post
 	if err := c.ShouldBindJSON(&post); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if post.Price < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "price cannot be negative"})
 		return
 	}
 
@@ -396,7 +763,6 @@ func createPost(c *gin.Context) {
 		return
 	}
 
-	// Get user info
 	err := db.QueryRow("SELECT email, name, COALESCE(profile_picture_url, '') FROM users WHERE id = $1", post.UserID).Scan(&post.UserEmail, &post.UserName, &post.UserProfilePictureURL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user info"})
@@ -558,7 +924,6 @@ func deletePost(c *gin.Context) {
 	postID := c.Param("id")
 	userID := c.GetString("user_id")
 
-	// Check ownership
 	var ownerID string
 	err := db.QueryRow("SELECT user_id FROM posts WHERE id = $1", postID).Scan(&ownerID)
 	if err == sql.ErrNoRows {
@@ -666,7 +1031,6 @@ func uploadProfilePicture(c *gin.Context) {
 
 	profileURL := fmt.Sprintf("/uploads/profiles/%s", filename)
 
-	// Update user's profile picture in database
 	_, err = db.Exec("UPDATE users SET profile_picture_url = $1 WHERE id = $2", profileURL, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update profile picture"})
@@ -683,6 +1047,9 @@ func main() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer db.Close()
+
+	// Start WebSocket hub
+	go hub.Run()
 
 	r := gin.Default()
 
@@ -714,6 +1081,14 @@ func main() {
 			protected.DELETE("/posts/:id", deletePost)
 			protected.POST("/upload", uploadMedia)
 			protected.POST("/upload-profile-picture", uploadProfilePicture)
+
+			// Chat routes
+			protected.GET("/ws", func(c *gin.Context) {
+				handleWebSocket(c)
+			})
+			protected.GET("/conversations", getConversations)
+			protected.GET("/conversations/:user_id", getOrCreateConversation)
+			protected.GET("/messages/:conversation_id", getMessages)
 		}
 	}
 

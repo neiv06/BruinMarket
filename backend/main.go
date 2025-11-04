@@ -307,11 +307,25 @@ func authMiddleware() gin.HandlerFunc {
 
 // WebSocket handler
 func handleWebSocket(c *gin.Context) {
-	userID := c.GetString("user_id")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	// Get token from query parameter
+	tokenString := c.Query("token")
+	if tokenString == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token required"})
 		return
 	}
+
+	// Verify token
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		return
+	}
+
+	userID := claims.UserID
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -326,10 +340,6 @@ func handleWebSocket(c *gin.Context) {
 	}
 
 	hub.Register <- client
-
-	// Send authentication success
-	authMsg, _ := json.Marshal(map[string]string{"type": "auth_success"})
-	client.Send <- authMsg
 
 	go client.writePump()
 	go client.readPump()
@@ -379,10 +389,11 @@ func (c *Client) readPump() {
 			wsMsg.MessageID = messageID
 			wsMsg.CreatedAt = now
 
+			msgBytes, _ := json.Marshal(wsMsg)
+
 			// Send to receiver
 			hub.mu.RLock()
 			if receiverClient, ok := hub.Clients[wsMsg.ReceiverID]; ok {
-				msgBytes, _ := json.Marshal(wsMsg)
 				select {
 				case receiverClient.Send <- msgBytes:
 				default:
@@ -390,11 +401,17 @@ func (c *Client) readPump() {
 					delete(hub.Clients, wsMsg.ReceiverID)
 				}
 			}
-			hub.mu.RUnlock()
 
-			// Send back to sender (confirmation)
-			msgBytes, _ := json.Marshal(wsMsg)
-			c.Send <- msgBytes
+			// Send back to sender (confirmation with the message)
+			if senderClient, ok := hub.Clients[wsMsg.SenderID]; ok {
+				select {
+				case senderClient.Send <- msgBytes:
+				default:
+					close(senderClient.Send)
+					delete(hub.Clients, wsMsg.SenderID)
+				}
+			}
+			hub.mu.RUnlock()
 		}
 	}
 }
@@ -1071,6 +1088,9 @@ func main() {
 		api.GET("/posts", getPosts)
 		api.GET("/posts/:id", getPost)
 
+		// WebSocket route - handles auth internally
+		api.GET("/ws", handleWebSocket)
+
 		// Protected routes
 		protected := api.Group("/")
 		protected.Use(authMiddleware())
@@ -1083,9 +1103,6 @@ func main() {
 			protected.POST("/upload-profile-picture", uploadProfilePicture)
 
 			// Chat routes
-			protected.GET("/ws", func(c *gin.Context) {
-				handleWebSocket(c)
-			})
 			protected.GET("/conversations", getConversations)
 			protected.GET("/conversations/:user_id", getOrCreateConversation)
 			protected.GET("/messages/:conversation_id", getMessages)

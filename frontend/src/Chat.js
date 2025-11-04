@@ -4,159 +4,193 @@ import { X, Send, MessageCircle, User } from 'lucide-react';
 const API_URL = 'http://localhost:8080/api';
 const WS_URL = 'ws://localhost:8080/api/ws';
 
-const Chat = ({ user, token, onClose }) => {
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [ws, setWs] = useState(null);
-  const messagesEndRef = useRef(null);
+const Chat = ({ user, token, onClose, initialConversation }) => {
+    const [conversations, setConversations] = useState([]);
+    const [selectedConversation, setSelectedConversation] = useState(initialConversation);
+    const [messages, setMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [ws, setWs] = useState(null);
+    const [wsReady, setWsReady] = useState(false);
+    const messagesEndRef = useRef(null);
+    const selectedConversationRef = useRef(null);
 
-  useEffect(() => {
-    loadConversations();
-    connectWebSocket();
 
-    return () => {
-      if (ws) {
-        ws.close();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (selectedConversation) {
-      loadMessages(selectedConversation.id);
-    }
-  }, [selectedConversation]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const connectWebSocket = () => {
-    // WebSocket doesn't support custom headers directly, so we need to authenticate after connection
-    const websocket = new WebSocket(WS_URL);
+    useEffect(() => {
+        selectedConversationRef.current = selectedConversation;
+      }, [selectedConversation]);
   
-    websocket.onopen = () => {
-      console.log('WebSocket connected');
-      // Send authentication message
-      websocket.send(JSON.stringify({
-        type: 'auth',
-        token: token
-      }));
-    };
-  
-    websocket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'auth_success') {
-        console.log('WebSocket authenticated');
-        return;
+    useEffect(() => {
+      loadConversations();
+      connectWebSocket();
+
+      if (initialConversation) {
+        setSelectedConversation(initialConversation);
       }
-      
-      if (data.type === 'message') {
-        // Add message to current conversation if it matches
-        if (selectedConversation && data.conversation_id === selectedConversation.id) {
-          setMessages(prev => [...prev, {
-            id: data.message_id,
-            conversation_id: data.conversation_id,
-            sender_id: data.sender_id,
-            receiver_id: data.receiver_id,
-            content: data.content,
-            created_at: data.created_at,
-            read: false
-          }]);
+  
+      return () => {
+        if (ws) {
+          ws.close();
         }
-        // Update conversations list
-        loadConversations();
-      }
-    };
-  
-    websocket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-  
-    websocket.onclose = () => {
-      console.log('WebSocket disconnected');
-      // Attempt to reconnect after 3 seconds
-      setTimeout(() => {
-        connectWebSocket();
-      }, 3000);
-    };
-  
-    setWs(websocket);
-  };
-
-  const loadConversations = async () => {
-    try {
-      const response = await fetch(`${API_URL}/conversations`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data || []);
-      }
-    } catch (error) {
-      console.error('Error loading conversations:', error);
-    }
-  };
-
-  const loadMessages = async (conversationId) => {
-    try {
-      const response = await fetch(`${API_URL}/messages/${conversationId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data || []);
-      }
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    }
-  };
-
-  const sendMessage = () => {
-    if (!newMessage.trim() || !ws || !selectedConversation) return;
-
-    const otherUserId = selectedConversation.user1_id === user.id 
-      ? selectedConversation.user2_id 
-      : selectedConversation.user1_id;
-
-    const message = {
-      type: 'message',
-      conversation_id: selectedConversation.id,
-      sender_id: user.id,
-      receiver_id: otherUserId,
-      content: newMessage.trim()
-    };
-
-    ws.send(JSON.stringify(message));
-    setNewMessage('');
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const getOtherUser = (conversation) => {
-    if (conversation.user1_id === user.id) {
-      return {
-        id: conversation.user2_id,
-        name: conversation.user2_name,
-        picture: conversation.user2_picture_url
       };
-    } else {
-      return {
-        id: conversation.user1_id,
-        name: conversation.user1_name,
-        picture: conversation.user1_picture_url
+    }, []);
+  
+    useEffect(() => {
+      if (selectedConversation) {
+        loadMessages(selectedConversation.id);
+      }
+    }, [selectedConversation]);
+  
+    useEffect(() => {
+      scrollToBottom();
+    }, [messages]);
+  
+    const connectWebSocket = () => {
+        console.log('Attempting WebSocket connection...');
+        console.log('Token:', token ? 'Token exists' : 'NO TOKEN');
+        
+        setTimeout(() => {
+          const websocket = new WebSocket(`${WS_URL}?token=${token}`);
+        
+          websocket.onopen = () => {
+            console.log(' WebSocket connected successfully!');
+            setWsReady(true);
+          };
+        
+          websocket.onmessage = (event) => {
+            console.log('📨 Message received:', event.data);
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'message') {
+              // Use ref to get current conversation
+              const currentConversation = selectedConversationRef.current;
+              
+              if (currentConversation && data.conversation_id === currentConversation.id) {
+                setMessages(prev => {
+                  // Check if message already exists to avoid duplicates
+                  const exists = prev.some(m => m.id === data.message_id);
+                  if (exists) return prev;
+                  
+                  return [...prev, {
+                    id: data.message_id,
+                    conversation_id: data.conversation_id,
+                    sender_id: data.sender_id,
+                    receiver_id: data.receiver_id,
+                    content: data.content,
+                    created_at: data.created_at,
+                    read: false
+                  }];
+                });
+              }
+              // Update conversations list
+              loadConversations();
+            }
+          };
+        
+          websocket.onerror = (error) => {
+            console.error(' WebSocket error:', error);
+            setWsReady(false);
+          };
+        
+          websocket.onclose = (event) => {
+            console.log('🔌 WebSocket closed. Code:', event.code, 'Reason:', event.reason);
+            setWsReady(false);
+            setTimeout(() => {
+              console.log(' Attempting to reconnect...');
+              connectWebSocket();
+            }, 3000);
+          };
+        
+          setWs(websocket);
+        }, 100);
       };
-    }
-  };
+  
+    const loadConversations = async () => {
+      try {
+        const response = await fetch(`${API_URL}/conversations`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setConversations(data || []);
+        }
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+      }
+    };
+  
+    const loadMessages = async (conversationId) => {
+      try {
+        const response = await fetch(`${API_URL}/messages/${conversationId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data || []);
+        }
+      } catch (error) {
+        console.error('Error loading messages:', error);
+      }
+    };
+  
+    const sendMessage = () => {
+        console.log('Send message called');
+        console.log('Message:', newMessage.trim());
+        console.log('WS exists:', !!ws);
+        console.log('WS Ready:', wsReady);
+        console.log('Selected conversation:', selectedConversation?.id);
+        
+        if (!newMessage.trim() || !ws || !selectedConversation || !wsReady) {
+          if (!wsReady) {
+            console.error('WebSocket not ready!');
+            alert('Connection not ready. Please wait a moment and try again.');
+          }
+          return;
+        }
+
+      const otherUserId = selectedConversation.user1_id === user.id 
+        ? selectedConversation.user2_id 
+        : selectedConversation.user1_id;
+  
+      const message = {
+        type: 'message',
+        conversation_id: selectedConversation.id,
+        sender_id: user.id,
+        receiver_id: otherUserId,
+        content: newMessage.trim()
+      };
+  
+      try {
+        ws.send(JSON.stringify(message));
+        setNewMessage('');
+      } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Failed to send message. Please try again.');
+      }
+    };
+  
+    const scrollToBottom = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+  
+    const getOtherUser = (conversation) => {
+      if (conversation.user1_id === user.id) {
+        return {
+          id: conversation.user2_id,
+          name: conversation.user2_name,
+          picture: conversation.user2_picture_url
+        };
+      } else {
+        return {
+          id: conversation.user1_id,
+          name: conversation.user1_name,
+          picture: conversation.user1_picture_url
+        };
+      }
+    };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

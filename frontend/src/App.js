@@ -32,6 +32,7 @@ const BruinBuy = () => {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [loading, setLoading] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [initialConversation, setInitialConversation] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -160,6 +161,35 @@ const BruinBuy = () => {
     }
   };
 
+  const openChatWithUser = async (userId) => {
+    if (!token) {
+      alert('Please login to message sellers');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/conversations/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.status === 401) {
+        alert('Your session has expired. Please log in again.');
+        return;
+      }
+      
+      if (!response.ok) throw new Error('Failed to create conversation');
+      
+      const conversation = await response.json();
+      setInitialConversation(conversation);
+      setShowChat(true);
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      alert('Failed to create conversation. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       {/* Header - Full Width */}
@@ -183,12 +213,12 @@ const BruinBuy = () => {
                   {user.name}
                 </button>
                 <button
-                  onClick={() => setShowChat(true)}
-                  className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                  <MessageCircle size={20} />
-                  Messages
-                </button>
+                    onClick={() => setShowChat(true)}
+                    className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <MessageCircle size={20} />
+                    Messages
+                  </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-md"
@@ -314,7 +344,7 @@ const BruinBuy = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {posts.map(post => (
                   <PostCard 
                     key={post.id} 
@@ -322,6 +352,7 @@ const BruinBuy = () => {
                     onDelete={deletePost}
                     canDelete={user && post.user_id === user.id}
                     token={token}
+                    onMessageUser={openChatWithUser}
                   />
                 ))}
               </div>
@@ -361,7 +392,11 @@ const BruinBuy = () => {
         <Chat
           user={user}
           token={token}
-          onClose={() => setShowChat(false)} 
+          initialConversation={initialConversation}
+          onClose={() => {
+            setShowChat(false);
+            setInitialConversation(null);
+          }}
         />
       )}
     </div>
@@ -504,6 +539,7 @@ const ProfilePage = ({ user, token, onDeletePost }) => {
             <PostCard 
               key={post.id} 
               post={post} 
+              token={token}
               onDelete={handleDelete}
               canDelete={true}
             />
@@ -631,7 +667,7 @@ const AuthModal = ({ onClose, onSuccess }) => {
   );
 };
 
-const PostCard = ({ post, onDelete, canDelete, token }) => {
+const PostCard = ({ post, onDelete, canDelete, token, onMessageUser }) => {
   const [showFullView, setShowFullView] = useState(false);
 
   return (
@@ -664,8 +700,6 @@ const PostCard = ({ post, onDelete, canDelete, token }) => {
                 {post.type === 'selling' ? 'Selling' : 'Buying'}
               </span>
             </div>
-            
-            <p className="text-gray-600 text-sm mb-2 line-clamp-2">{post.description}</p>
             
             {/* User info with profile picture */}
             <div className="flex items-center gap-2 mb-3">
@@ -712,13 +746,18 @@ const PostCard = ({ post, onDelete, canDelete, token }) => {
       </div>
 
       {showFullView && (
-        <PostFullView post={post} onClose={() => setShowFullView(false)} />
+        <PostFullView 
+          post={post} 
+          token={token} 
+          onClose={() => setShowFullView(false)} 
+          onMessageUser={onMessageUser} 
+        />
       )}
     </>
   );
 };
 
-const PostFullView = ({ post, token, onClose }) => {
+const PostFullView = ({ post, token, onClose, onMessageUser }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
   return (
@@ -810,20 +849,30 @@ const PostFullView = ({ post, token, onClose }) => {
               </div>
               <button
                 onClick={async () => {
-                  // Create/get conversation and open chat
+                  if (!token) {
+                    alert('Please login to message sellers');
+                    return;
+                  }
+                  
                   try {
-                    const response = await fetch(`${API_URL}/conversations/${post.user_id}`, {
+                    const response = await fetch(`http://localhost:8080/api/conversations/${post.user_id}`, {
                       headers: {
                         'Authorization': `Bearer ${token}`
                       }
                     });
-                    if (response.ok) {
-                      onClose();
-                      // You'll need to pass a callback to open chat with this conversation
-                      window.location.reload(); // Temporary - reload to show in messages
+                    
+                    if (response.status === 401) {
+                      alert('Your session has expired. Please log in again.');
+                      return;
                     }
+                    
+                    if (!response.ok) throw new Error('Failed to create conversation');
+                    
+                    alert('Conversation created! Check your Messages.');
+                    onClose();
                   } catch (error) {
                     console.error('Error creating conversation:', error);
+                    alert('Failed to create conversation. Please try again.');
                   }
                 }}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"

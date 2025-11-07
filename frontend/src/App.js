@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Palette, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle } from 'lucide-react';
-import logo from './BruinBuyTransparent.svg';
+import logo from './BruinMarketTransparent.svg';
 import Chat from './Chat.js'
 
 const API_URL = 'http://localhost:8080/api';
@@ -19,7 +19,7 @@ const categories = [
   { name: 'Other', value: 'Other', icon: CircleQuestionMark },
 ];
 
-const BruinBuy = () => {
+const BruinMarket = () => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -196,9 +196,9 @@ const BruinBuy = () => {
       <div className="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-40">
         <div className="px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <img src={logo} alt="BruinBuy Logo" className="h-20 w-20" />
+            <img src={logo} alt="BruinMarket Logo" className="h-20 w-20" />
             <div>
-              <h1 className="text-3xl font-bold">BruinBuy</h1>
+              <h1 className="text-3xl font-bold">BruinMarket</h1>
               <p className="text-blue-100 text-sm mt-1">UCLA Student Marketplace</p>
             </div>
           </div>
@@ -1143,4 +1143,4 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
   );
 };
 
-export default BruinBuy;
+export default BruinMarket;

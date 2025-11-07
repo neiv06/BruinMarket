@@ -185,7 +185,7 @@ func initDB() error {
 		if whoami == "" {
 			whoami = "postgres"
 		}
-		connStr = fmt.Sprintf("postgres://%s@localhost/bruinbuy?sslmode=disable", whoami)
+		connStr = fmt.Sprintf("postgres://%s@localhost/bruinmarket?sslmode=disable", whoami)
 	}
 
 	db, err = sql.Open("postgres", connStr)

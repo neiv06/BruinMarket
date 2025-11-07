@@ -14,6 +14,7 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
     const [wsReady, setWsReady] = useState(false);
     const messagesEndRef = useRef(null);
     const selectedConversationRef = useRef(null);
+    const [isVisible, setIsVisible] = useState(false);
 
 
     useEffect(() => {
@@ -27,6 +28,9 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
       if (initialConversation) {
         setSelectedConversation(initialConversation);
       }
+  
+      // Trigger fade-in and pull-up animation
+      setTimeout(() => setIsVisible(true), 10);
   
       return () => {
         if (ws) {
@@ -194,8 +198,10 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
     };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-5xl h-[600px] flex overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
+      <div className={`bg-white rounded-lg w-full max-w-5xl h-[600px] flex overflow-hidden shadow-2xl transition-all duration-500 ease-out ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      }`}>
         {/* Conversations List */}
         <div className="w-1/3 border-r border-gray-200 flex flex-col">
           <div className="bg-blue-600 text-white p-4 flex items-center justify-between">

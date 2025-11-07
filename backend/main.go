@@ -107,6 +107,8 @@ type Post struct {
 	Category              string    `json:"category" binding:"required"`
 	Type                  string    `json:"type" binding:"required"`
 	Location              string    `json:"location"`
+	Condition             string    `json:"condition"`
+	Sold                  bool      `json:"sold"`
 	Media                 []Media   `json:"media"`
 	CreatedAt             time.Time `json:"created_at"`
 }
@@ -256,6 +258,18 @@ func initDB() error {
 	`
 
 	_, err = db.Exec(schema)
+	if err != nil {
+		return err
+	}
+
+	// Add condition column if it doesn't exist
+	_, err = db.Exec(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS condition VARCHAR(50)`)
+	if err != nil {
+		return err
+	}
+
+	// Add sold column if it doesn't exist
+	_, err = db.Exec(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS sold BOOLEAN DEFAULT FALSE`)
 	if err != nil {
 		return err
 	}
@@ -474,7 +488,7 @@ func getOrCreateConversation(c *gin.Context) {
 		}
 
 		// Fetch the new conversation
-		db.QueryRow(
+		err = db.QueryRow(
 			`SELECT c.id, c.user1_id, c.user2_id, u1.name, u2.name,
 			 COALESCE(u1.profile_picture_url, ''), COALESCE(u2.profile_picture_url, ''),
 			 COALESCE(c.last_message, ''), COALESCE(c.last_message_time, c.created_at), c.created_at
@@ -487,6 +501,12 @@ func getOrCreateConversation(c *gin.Context) {
 			&conversation.User1Name, &conversation.User2Name,
 			&conversation.User1PictureURL, &conversation.User2PictureURL,
 			&conversation.LastMessage, &conversation.LastMessageTime, &conversation.CreatedAt)
+
+		if err != nil {
+			log.Printf("Error fetching new conversation: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch new conversation"})
+			return
+		}
 	} else if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
@@ -715,7 +735,7 @@ func getMyPosts(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	rows, err := db.Query(
-		`SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), p.created_at 
+		`SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), COALESCE(p.condition, ''), COALESCE(p.sold, false), p.created_at 
 		FROM posts p 
 		JOIN users u ON p.user_id = u.id 
 		WHERE p.user_id = $1 
@@ -731,7 +751,7 @@ func getMyPosts(c *gin.Context) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.Condition, &post.Sold, &post.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -756,6 +776,73 @@ func getMyPosts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, posts)
+}
+
+func getUserProfile(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	// Get user info
+	var user User
+	err := db.QueryRow(
+		"SELECT id, email, name, COALESCE(profile_picture_url, ''), created_at FROM users WHERE id = $1",
+		userID,
+	).Scan(&user.ID, &user.Email, &user.Name, &user.ProfilePictureURL, &user.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
+		return
+	}
+
+	// Get user's posts
+	rows, err := db.Query(
+		`SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), COALESCE(p.condition, ''), COALESCE(p.sold, false), p.created_at 
+		FROM posts p 
+		JOIN users u ON p.user_id = u.id 
+		WHERE p.user_id = $1 
+		ORDER BY p.created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch posts"})
+		return
+	}
+	defer rows.Close()
+
+	posts := []Post{}
+	for rows.Next() {
+		var post Post
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.Condition, &post.Sold, &post.CreatedAt)
+		if err != nil {
+			continue
+		}
+
+		mediaRows, err := db.Query(
+			"SELECT id, url, type, order_index FROM media WHERE post_id = $1 ORDER BY order_index",
+			post.ID,
+		)
+		if err == nil {
+			defer mediaRows.Close()
+			for mediaRows.Next() {
+				var media Media
+				var order int
+				mediaRows.Scan(&media.ID, &media.URL, &media.Type, &order)
+				media.PostID = post.ID
+				media.Order = order
+				post.Media = append(post.Media, media)
+			}
+		}
+
+		posts = append(posts, post)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user":  user,
+		"posts": posts,
+	})
 }
 
 // Post Handlers (existing)
@@ -787,8 +874,8 @@ func createPost(c *gin.Context) {
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO posts (id, user_id, title, description, price, category, type, location, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		post.ID, post.UserID, post.Title, post.Description, post.Price, post.Category, post.Type, post.Location, post.CreatedAt,
+		"INSERT INTO posts (id, user_id, title, description, price, category, type, location, condition, sold, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+		post.ID, post.UserID, post.Title, post.Description, post.Price, post.Category, post.Type, post.Location, post.Condition, post.Sold, post.CreatedAt,
 	)
 	if err != nil {
 		log.Printf("createPost insert error: %v", err)
@@ -817,7 +904,7 @@ func getPosts(c *gin.Context) {
 	minPrice := c.Query("min_price")
 	maxPrice := c.Query("max_price")
 
-	query := `SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), p.created_at 
+	query := `SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), COALESCE(p.condition, ''), COALESCE(p.sold, false), p.created_at 
 			  FROM posts p 
 			  JOIN users u ON p.user_id = u.id 
 			  WHERE 1=1`
@@ -870,7 +957,7 @@ func getPosts(c *gin.Context) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
+		err := rows.Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.Condition, &post.Sold, &post.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -902,12 +989,12 @@ func getPost(c *gin.Context) {
 
 	var post Post
 	err := db.QueryRow(
-		`SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), p.created_at 
+		`SELECT p.id, p.user_id, u.email, u.name, COALESCE(u.profile_picture_url, ''), p.title, p.description, p.price, p.category, p.type, COALESCE(p.location, ''), COALESCE(p.condition, ''), p.created_at 
 		FROM posts p 
 		JOIN users u ON p.user_id = u.id 
 		WHERE p.id = $1`,
 		postID,
-	).Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.CreatedAt)
+	).Scan(&post.ID, &post.UserID, &post.UserEmail, &post.UserName, &post.UserProfilePictureURL, &post.Title, &post.Description, &post.Price, &post.Category, &post.Type, &post.Location, &post.Condition, &post.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
@@ -964,6 +1051,101 @@ func deletePost(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "post deleted successfully"})
+}
+
+func markPostAsSold(c *gin.Context) {
+	postID := c.Param("id")
+	userID := c.GetString("user_id")
+
+	var ownerID string
+	err := db.QueryRow("SELECT user_id FROM posts WHERE id = $1", postID).Scan(&ownerID)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+		return
+	}
+	if err != nil {
+		log.Printf("Error fetching post owner: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	if ownerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "you can only mark your own posts as sold"})
+		return
+	}
+
+	// Ensure the sold column exists
+	_, err = db.Exec(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS sold BOOLEAN DEFAULT FALSE`)
+	if err != nil {
+		log.Printf("Warning: Could not ensure sold column exists: %v", err)
+	}
+
+	_, err = db.Exec("UPDATE posts SET sold = $1 WHERE id = $2", true, postID)
+	if err != nil {
+		log.Printf("Error marking post as sold: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark post as sold", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "post marked as sold successfully"})
+}
+
+func updatePost(c *gin.Context) {
+	postID := c.Param("id")
+	userID := c.GetString("user_id")
+
+	var ownerID string
+	err := db.QueryRow("SELECT user_id FROM posts WHERE id = $1", postID).Scan(&ownerID)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	if ownerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "you can only update your own posts"})
+		return
+	}
+
+	var post Post
+	if err := c.ShouldBindJSON(&post); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update post fields
+	_, err = db.Exec(
+		"UPDATE posts SET title = $1, description = $2, price = $3, category = $4, type = $5, location = $6, condition = $7 WHERE id = $8",
+		post.Title, post.Description, post.Price, post.Category, post.Type, post.Location, post.Condition, postID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update post"})
+		return
+	}
+
+	// Delete existing media
+	_, err = db.Exec("DELETE FROM media WHERE post_id = $1", postID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update media"})
+		return
+	}
+
+	// Insert new media
+	for i, media := range post.Media {
+		mediaID := uuid.New().String()
+		_, err := db.Exec(
+			"INSERT INTO media (id, post_id, url, type, order_index) VALUES ($1, $2, $3, $4, $5)",
+			mediaID, postID, media.URL, media.Type, i,
+		)
+		if err != nil {
+			log.Printf("updatePost media insert error: %v", err)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "post updated successfully"})
 }
 
 func uploadMedia(c *gin.Context) {
@@ -1104,8 +1286,10 @@ func main() {
 		{
 			protected.GET("/auth/me", getMe)
 			protected.GET("/auth/my-posts", getMyPosts)
+			protected.GET("/users/:user_id", getUserProfile)
 			protected.POST("/posts", createPost)
 			protected.DELETE("/posts/:id", deletePost)
+			protected.PUT("/posts/:id", updatePost)
 			protected.POST("/upload", uploadMedia)
 			protected.POST("/upload-profile-picture", uploadProfilePicture)
 

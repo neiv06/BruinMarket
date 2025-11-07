@@ -36,3 +36,25 @@
     transform: rotate(360deg);
   }
 }
+
+/* Subtle texture overlay for main background */
+.subtle-texture {
+  position: relative;
+}
+
+.subtle-texture::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 0.5px 0.5px, rgba(0,0,0,0.008) 0.5px, transparent 0),
+    radial-gradient(circle at 1.5px 1.5px, rgba(0,0,0,0.006) 0.5px, transparent 0);
+  background-size: 24px 24px, 32px 32px;
+  background-position: 0 0, 12px 12px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}

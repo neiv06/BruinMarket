@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, MessageCircle, User } from 'lucide-react';
 
-const API_URL = 'http://localhost:8080/api';
-const WS_URL = 'ws://localhost:8080/api/ws';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8080/api/ws';
+
 
 const Chat = ({ user, token, onClose, initialConversation }) => {
     const [conversations, setConversations] = useState([]);

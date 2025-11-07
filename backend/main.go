@@ -1153,6 +1153,7 @@ func uploadMedia(c *gin.Context) {
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
+		log.Printf("No file in request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no file uploaded"})
 		return
 	}
@@ -1167,23 +1168,38 @@ func uploadMedia(c *gin.Context) {
 	ext := filepath.Ext(header.Filename)
 	filename := uuid.New().String() + ext
 
-	uploadDir := "./uploads"
-	os.MkdirAll(uploadDir, os.ModePerm)
+	// Use environment variable for Railway volume
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = "./uploads" // fallback for local
+	}
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+		log.Printf("Error creating upload directory: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create upload directory"})
+		return
+	}
+
 	filePath := filepath.Join(uploadDir, filename)
+	log.Printf("Saving file to: %s", filePath)
 
 	dst, err := os.Create(filePath)
 	if err != nil {
+		log.Printf("Error creating file %s: %v", filePath, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
 	}
 	defer dst.Close()
 
 	if _, err = io.Copy(dst, file); err != nil {
+		log.Printf("Error copying file data: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
 	}
 
 	url := fmt.Sprintf("/uploads/%s", filename)
+	log.Printf("File saved successfully: %s", url)
 
 	c.JSON(http.StatusOK, gin.H{
 		"url":  url,
@@ -1193,7 +1209,6 @@ func uploadMedia(c *gin.Context) {
 
 func uploadProfilePicture(c *gin.Context) {
 	userID := c.GetString("user_id")
-
 	c.Request.ParseMultipartForm(10 << 20)
 
 	file, header, err := c.Request.FormFile("file")
@@ -1212,12 +1227,24 @@ func uploadProfilePicture(c *gin.Context) {
 	ext := filepath.Ext(header.Filename)
 	filename := "profile_" + userID + "_" + uuid.New().String() + ext
 
-	uploadDir := "./uploads/profiles"
-	os.MkdirAll(uploadDir, os.ModePerm)
-	filePath := filepath.Join(uploadDir, filename)
+	// Use environment variable for Railway volume
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = "./uploads"
+	}
+	profileDir := filepath.Join(uploadDir, "profiles")
+
+	if err := os.MkdirAll(profileDir, os.ModePerm); err != nil {
+		log.Printf("Error creating profile directory: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create directory"})
+		return
+	}
+
+	filePath := filepath.Join(profileDir, filename)
 
 	dst, err := os.Create(filePath)
 	if err != nil {
+		log.Printf("Error creating profile picture: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
 	}
@@ -1267,7 +1294,11 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	r.Static("/uploads", "./uploads")
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = "./uploads"
+	}
+	r.Static("/uploads", uploadDir)
 
 	api := r.Group("/api")
 	{

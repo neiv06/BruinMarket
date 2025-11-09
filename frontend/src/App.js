@@ -912,7 +912,7 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
           {/* User Info */}
           <div className="flex-1">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{user.name}</h2>
-            <p className="text-gray-600 mb-4">{user.email}</p>
+            {/* <p className="text-gray-600 mb-4">{user.email}</p> */}
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <span>Total Posts: {myPosts.length}</span>
             </div>

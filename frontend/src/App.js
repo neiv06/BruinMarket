@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Sofa, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit, CheckCircle } from 'lucide-react';
+import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Sofa, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit, CheckCircle, Github } from 'lucide-react';
 import logo from './BruinMarketTransparent.svg';
 import Chat from './Chat.js';
 
@@ -700,11 +700,20 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, showAuthModal, setShowA
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* Beta label in top right */}
-      <div className="absolute top-6 left-6 z-20">
+      {/* Beta label and GitHub link in top left */}
+      <div className="absolute top-6 left-6 z-20 flex items-center gap-3">
         <span className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-sm font-semibold rounded-full border border-white/30">
           Beta
         </span>
+        <a
+          href="https://github.com/neiv06/BruinMarket"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-2 bg-white/20 backdrop-blur-sm text-white rounded-full border border-white/30 hover:bg-white/30 hover:scale-110 transition-all duration-300"
+          aria-label="View on GitHub"
+        >
+          <Github size={20} />
+        </a>
       </div>
       
       {/* Blurred background image */}

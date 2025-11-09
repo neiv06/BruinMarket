@@ -3,8 +3,6 @@ import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbb
 import logo from './BruinMarketTransparent.svg';
 import Chat from './Chat.js';
 
-<link rel="icon" href="../public/favicon.ico"></link>
-
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 
 const categories = [

@@ -61,6 +61,7 @@ const BruinMarket = () => {
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [isNavigatingToAll, setIsNavigatingToAll] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
+  const [viewMarketplaceWithoutLogin, setViewMarketplaceWithoutLogin] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -380,8 +381,8 @@ const BruinMarket = () => {
     );
   }
 
-  // Show landing page if no token or no user
-  if (!token || !user) {
+  // Show landing page if no token or no user (unless viewing marketplace without login)
+  if ((!token || !user) && !viewMarketplaceWithoutLogin) {
     return (
       <LandingPage 
         onLogin={() => setShowAuthModal({ show: true, isSignUp: false })}
@@ -391,6 +392,10 @@ const BruinMarket = () => {
           setUser(user);
           localStorage.setItem('token', token);
           setShowAuthModal({ show: false, isSignUp: false });
+        }}
+        onViewMarketplace={() => {
+          setViewMarketplaceWithoutLogin(true);
+          setShowMarketplace(true);
         }}
         showAuthModal={showAuthModal}
         setShowAuthModal={setShowAuthModal}
@@ -656,7 +661,7 @@ const BruinMarket = () => {
   );
 };
 
-const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, showAuthModal, setShowAuthModal }) => {
+const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, showAuthModal, setShowAuthModal }) => {
   const [displayedText, setDisplayedText] = useState('');
   const fullText = 'UCLA Student Marketplace';
   const [isTyping, setIsTyping] = useState(true);
@@ -758,6 +763,16 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, showAuthModal, setShowA
             className="px-8 py-4 bg-transparent text-white border-2 border-white rounded-lg font-semibold text-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-amber-400 hover:bg-white/10"
           >
             Sign Up
+          </button>
+        </div>
+        
+        {/* View Marketplace Button */}
+        <div className={`flex justify-center mt-6 transition-all duration-1000 ease-out ${showButtons ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
+          <button
+            onClick={onViewMarketplace}
+            className="px-8 py-3 bg-white/20 backdrop-blur-sm text-white border-2 border-white/50 rounded-lg font-semibold text-base transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-amber-400 hover:bg-white/30 hover:border-white"
+          >
+            View Marketplace
           </button>
         </div>
         

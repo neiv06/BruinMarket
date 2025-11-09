@@ -603,7 +603,7 @@ const BruinMarket = () => {
               {posts.length === 0 && (
                 <div className="text-center py-12">
                   <Package size={64} className="mx-auto text-gray-300 mb-4" />
-                  <p className="text-gray-500 text-lg">No posts found. Create the first one!</p>
+                  <p className="text-white text-lg">No posts found. Create the first one!</p>
                 </div>
               )}
             </>

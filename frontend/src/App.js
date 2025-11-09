@@ -700,6 +700,13 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, showAuthModal, setShowA
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      {/* Beta label in top right */}
+      <div className="absolute top-6 left-6 z-20">
+        <span className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-sm font-semibold rounded-full border border-white/30">
+          Beta
+        </span>
+      </div>
+      
       {/* Blurred background image */}
       <div 
         className="absolute inset-0 bg-cover bg-center"
@@ -744,6 +751,11 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, showAuthModal, setShowA
             Sign Up
           </button>
         </div>
+        
+        {/* Mobile App coming soon text */}
+        <p className={`italic text-sm text-gray-300 mt-6 transition-all duration-1000 ease-out ${showTitle ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
+          mobile app coming soon
+        </p>
       </div>
 
       {showAuthModal.show && (

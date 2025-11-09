@@ -1353,22 +1353,22 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                         e.stopPropagation();
                         setShowMenu(!showMenu);
                       }}
-                      className="p-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                      className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-all duration-300 hover:scale-110 hover:shadow-md"
                     >
                       <MoreVertical size={20} className="text-gray-600" />
                     </button>
                     {showMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20" onClick={(e) => e.stopPropagation()}>
+                      <div className="absolute right-full mr-2 top-0 w-48 bg-white rounded-xl shadow-2xl border border-gray-200 z-20 overflow-hidden" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowMenu(false);
                             onEdit();
                           }}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                          className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-3 transition-all duration-200 border-b border-gray-100 last:border-b-0"
                         >
-                          <Edit size={16} />
-                          Edit Post
+                          <Edit size={18} className="text-blue-600" />
+                          <span className="font-medium">Edit Post</span>
                         </button>
                         <button
                           onClick={(e) => {
@@ -1379,10 +1379,10 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                               onClose();
                             }
                           }}
-                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-3 transition-all duration-200"
                         >
-                          <Trash2 size={16} />
-                          Delete Post
+                          <Trash2 size={18} className="text-red-600" />
+                          <span className="font-medium">Delete Post</span>
                         </button>
                       </div>
                     )}

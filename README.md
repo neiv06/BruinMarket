@@ -232,13 +232,10 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📄 License
-
-This project is for educational purposes.
 
 ## 👥 Authors
 
-UCLA Student Marketplace Team
+Neiv Gupta
 
 ---
 

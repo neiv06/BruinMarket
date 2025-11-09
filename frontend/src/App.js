@@ -236,20 +236,24 @@ const BruinMarket = () => {
       const response = await fetch(`${API_URL}/posts/${postId}/sold`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to mark post as sold');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
+        console.error('Error marking post as sold:', errorMessage, response.status);
+        alert(`Failed to mark post as sold: ${errorMessage}`);
+        return;
       }
       
       // Reload posts to get updated data
       loadPosts();
     } catch (error) {
       console.error('Error marking post as sold:', error);
-      alert('Failed to mark post as sold. Please try again.');
+      alert(`Failed to mark post as sold: ${error.message || 'Please try again.'}`);
     }
   };
 

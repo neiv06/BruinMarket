@@ -1,4 +1,4 @@
-# BruinMarket
+# BruinMarket (Beta)
 
 A modern marketplace platform for UCLA students to buy and sell items within their community. Built with React and Go, featuring real-time messaging, media uploads, and a beautiful, responsive UI.
 
@@ -238,6 +238,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 Neiv Gupta
 
 ---
-
-**Note**: Remember to change the JWT secret and database credentials before deploying to production!
 

@@ -235,7 +235,7 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                     <div className="flex items-center gap-3">
                       {otherUser.picture ? (
                         <img
-                          src={`http://localhost:8080${otherUser.picture}`}
+                          src={`${API_URL.replace('/api', '')}${otherUser.picture}`}
                           alt={otherUser.name}
                           className="w-12 h-12 rounded-full object-cover"
                         />
@@ -269,7 +269,7 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                       <>
                         {otherUser.picture ? (
                           <img
-                            src={`http://localhost:8080${otherUser.picture}`}
+                            src={`${API_URL.replace('/api', '')}${otherUser.picture}`}
                             alt={otherUser.name}
                             className="w-10 h-10 rounded-full object-cover"
                           />

@@ -813,7 +813,7 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
           <div className="relative">
             {user.profile_picture_url ? (
               <img 
-                src={`http://localhost:8080${user.profile_picture_url}`} 
+                src={`${API_URL.replace('/api', '')}${user.profile_picture_url}`} 
                 alt={user.name}
                 className="w-32 h-32 rounded-full object-cover border-4 border-blue-200"
               />
@@ -1109,7 +1109,7 @@ const PostCard = ({ post, onDelete, onEdit, canDelete, token, onMessageUser, onV
             <div className="flex items-center gap-2 mb-2">
               {post.user_profile_picture_url ? (
                 <img 
-                  src={`http://localhost:8080${post.user_profile_picture_url}`} 
+                  src={`${API_URL.replace('/api', '')}${post.user_profile_picture_url}`} 
                   alt={post.user_name}
                   className="w-6 h-6 rounded-full object-cover"
                 />
@@ -1211,7 +1211,7 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                 <div 
                   className="absolute inset-0 bg-cover bg-center"
                   style={{
-                    backgroundImage: `url(http://localhost:8080${post.media[currentMediaIndex].url})`,
+                    backgroundImage: `url(${API_URL.replace('/api', '')}${post.media[currentMediaIndex].url})`,
                     filter: 'blur(20px) brightness(0.3)',
                     transform: 'scale(1.1)'
                   }}
@@ -1220,13 +1220,13 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                 <div className="relative z-10 h-full flex items-center justify-center">
                   {post.media[currentMediaIndex].type.startsWith('image/') ? (
                     <img 
-                      src={`http://localhost:8080${post.media[currentMediaIndex].url}`}
+                      src={`${API_URL.replace('/api', '')}${post.media[currentMediaIndex].url}`}
                       alt={`Media ${currentMediaIndex + 1}`}
                       className="max-w-full max-h-full object-contain"
                     />
                   ) : (
                     <video 
-                      src={`http://localhost:8080${post.media[currentMediaIndex].url}`}
+                      src={`${API_URL.replace('/api', '')}${post.media[currentMediaIndex].url}`}
                       controls
                       className="max-w-full max-h-full"
                     />
@@ -1286,7 +1286,7 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
             <div className="flex items-center gap-3">
               {post.user_profile_picture_url ? (
                 <img 
-                  src={`http://localhost:8080${post.user_profile_picture_url}`} 
+                  src={`${API_URL.replace('/api', '')}${post.user_profile_picture_url}`} 
                   alt={post.user_name}
                   onClick={() => {
                     if (onViewUserProfile) {

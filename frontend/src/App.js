@@ -912,6 +912,9 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
           {/* User Info */}
           <div className="flex-1">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{user.name}</h2>
+            {user.year && (
+              <p className="text-lg text-gray-600 mb-2">{user.year}</p>
+            )}
             {/* <p className="text-gray-600 mb-4">{user.email}</p> */}
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <span>Total Posts: {myPosts.length}</span>
@@ -971,7 +974,7 @@ const OtherUserProfile = ({ profileData, token, onClose, onViewUserProfile }) =>
           <div className="relative">
             {user.profile_picture_url ? (
               <img 
-                src={`${API_URL.replace('/api', '')}${user.picture_url}`}
+                src={`${API_URL.replace('/api', '')}${user.profile_picture_url}`}
                 alt={user.name}
                 className="w-32 h-32 rounded-full object-cover border-4 border-blue-200"
               />
@@ -1022,7 +1025,8 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    name: ''
+    name: '',
+    year: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1041,6 +1045,12 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
 
     if (!formData.email.endsWith('@ucla.edu')) {
       setError('Please use a @ucla.edu email address');
+      setLoading(false);
+      return;
+    }
+
+    if (!isLogin && !formData.year) {
+      setError('Please select your year');
       setLoading(false);
       return;
     }
@@ -1092,15 +1102,32 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
 
         <div className="space-y-4">
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                <select
+                  value={formData.year}
+                  onChange={(e) => setFormData({...formData, year: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Year</option>
+                  <option value="Freshman">Freshman</option>
+                  <option value="Sophomore">Sophomore</option>
+                  <option value="Junior">Junior</option>
+                  <option value="Senior">Senior</option>
+                  <option value="Graduate">Graduate</option>
+                </select>
+              </div>
+            </>
           )}
 
           <div>

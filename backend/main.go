@@ -90,6 +90,7 @@ type User struct {
 	ID                string    `json:"id"`
 	Email             string    `json:"email"`
 	Name              string    `json:"name"`
+	Year              string    `json:"year"`
 	ProfilePictureURL string    `json:"profile_picture_url"`
 	Password          string    `json:"-"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -153,6 +154,7 @@ type RegisterRequest struct {
 	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	Name     string `json:"name" binding:"required"`
+	Year     string `json:"year" binding:"required"`
 }
 
 type AuthResponse struct {
@@ -626,10 +628,16 @@ func register(c *gin.Context) {
 		return
 	}
 
+	// Ensure the year column exists
+	_, err = db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS year VARCHAR(50)`)
+	if err != nil {
+		log.Printf("Warning: Could not ensure year column exists: %v", err)
+	}
+
 	userID := uuid.New().String()
 	_, err = db.Exec(
-		"INSERT INTO users (id, email, name, password, created_at) VALUES ($1, $2, $3, $4, $5)",
-		userID, req.Email, req.Name, string(hashedPassword), time.Now(),
+		"INSERT INTO users (id, email, name, year, password, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		userID, req.Email, req.Name, req.Year, string(hashedPassword), time.Now(),
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
@@ -655,6 +663,7 @@ func register(c *gin.Context) {
 		ID:        userID,
 		Email:     req.Email,
 		Name:      req.Name,
+		Year:      req.Year,
 		CreatedAt: time.Now(),
 	}
 
@@ -674,9 +683,9 @@ func login(c *gin.Context) {
 	var user User
 	var hashedPassword string
 	err := db.QueryRow(
-		"SELECT id, email, name, COALESCE(profile_picture_url, ''), password, created_at FROM users WHERE email = $1",
+		"SELECT id, email, name, COALESCE(year, ''), COALESCE(profile_picture_url, ''), password, created_at FROM users WHERE email = $1",
 		req.Email,
-	).Scan(&user.ID, &user.Email, &user.Name, &user.ProfilePictureURL, &hashedPassword, &user.CreatedAt)
+	).Scan(&user.ID, &user.Email, &user.Name, &user.Year, &user.ProfilePictureURL, &hashedPassword, &user.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
@@ -719,9 +728,9 @@ func getMe(c *gin.Context) {
 
 	var user User
 	err := db.QueryRow(
-		"SELECT id, email, name, COALESCE(profile_picture_url, ''), created_at FROM users WHERE id = $1",
+		"SELECT id, email, name, COALESCE(year, ''), COALESCE(profile_picture_url, ''), created_at FROM users WHERE id = $1",
 		userID,
-	).Scan(&user.ID, &user.Email, &user.Name, &user.ProfilePictureURL, &user.CreatedAt)
+	).Scan(&user.ID, &user.Email, &user.Name, &user.Year, &user.ProfilePictureURL, &user.CreatedAt)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
@@ -784,9 +793,9 @@ func getUserProfile(c *gin.Context) {
 	// Get user info
 	var user User
 	err := db.QueryRow(
-		"SELECT id, email, name, COALESCE(profile_picture_url, ''), created_at FROM users WHERE id = $1",
+		"SELECT id, email, name, COALESCE(year, ''), COALESCE(profile_picture_url, ''), created_at FROM users WHERE id = $1",
 		userID,
-	).Scan(&user.ID, &user.Email, &user.Name, &user.ProfilePictureURL, &user.CreatedAt)
+	).Scan(&user.ID, &user.Email, &user.Name, &user.Year, &user.ProfilePictureURL, &user.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})

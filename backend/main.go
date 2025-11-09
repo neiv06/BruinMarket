@@ -1070,7 +1070,7 @@ func markPostAsSold(c *gin.Context) {
 	}
 
 	if ownerID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "you can only mark your own posts as sold"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "you can only update your own posts"})
 		return
 	}
 
@@ -1080,14 +1080,27 @@ func markPostAsSold(c *gin.Context) {
 		log.Printf("Warning: Could not ensure sold column exists: %v", err)
 	}
 
-	_, err = db.Exec("UPDATE posts SET sold = $1 WHERE id = $2", true, postID)
+	// Parse request body to get sold status
+	var requestBody struct {
+		Sold bool `json:"sold"`
+	}
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		// If no body provided, default to true (mark as sold)
+		requestBody.Sold = true
+	}
+
+	_, err = db.Exec("UPDATE posts SET sold = $1 WHERE id = $2", requestBody.Sold, postID)
 	if err != nil {
-		log.Printf("Error marking post as sold: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark post as sold", "details": err.Error()})
+		log.Printf("Error updating post sold status: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update post sold status", "details": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "post marked as sold successfully"})
+	action := "marked as sold"
+	if !requestBody.Sold {
+		action = "unmarked as sold"
+	}
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("post %s successfully", action)})
 }
 
 func updatePost(c *gin.Context) {

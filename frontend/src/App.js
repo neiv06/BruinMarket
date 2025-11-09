@@ -231,29 +231,30 @@ const BruinMarket = () => {
     }
   };
 
-  const markAsSold = async (postId) => {
+  const markAsSold = async (postId, soldStatus) => {
     try {
       const response = await fetch(`${API_URL}/posts/${postId}/sold`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ sold: soldStatus })
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
-        console.error('Error marking post as sold:', errorMessage, response.status);
-        alert(`Failed to mark post as sold: ${errorMessage}`);
+        console.error('Error updating post sold status:', errorMessage, response.status);
+        alert(`Failed to update post sold status: ${errorMessage}`);
         return;
       }
       
       // Reload posts to get updated data
       loadPosts();
     } catch (error) {
-      console.error('Error marking post as sold:', error);
-      alert(`Failed to mark post as sold: ${error.message || 'Please try again.'}`);
+      console.error('Error updating post sold status:', error);
+      alert(`Failed to update post sold status: ${error.message || 'Please try again.'}`);
     }
   };
 
@@ -1414,21 +1415,20 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                           <Edit size={18} className="text-blue-600" />
                           <span className="font-medium">Edit Post</span>
                         </button>
-                        {!post.sold && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowMenu(false);
-                              if (window.confirm('Mark this post as sold?')) {
-                                onMarkAsSold(post.id);
-                              }
-                            }}
-                            className="w-full px-4 py-3 text-left text-sm text-orange-600 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-3 transition-all duration-200 border-b border-gray-100"
-                          >
-                            <CheckCircle size={18} className="text-orange-600" />
-                            <span className="font-medium">Mark as Sold</span>
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMenu(false);
+                            const action = post.sold ? 'Unmark this post as sold?' : 'Mark this post as sold?';
+                            if (window.confirm(action)) {
+                              onMarkAsSold(post.id, !post.sold);
+                            }
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm text-orange-600 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-3 transition-all duration-200 border-b border-gray-100"
+                        >
+                          <CheckCircle size={18} className="text-orange-600" />
+                          <span className="font-medium">{post.sold ? 'Unmark as Sold' : 'Mark as Sold'}</span>
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

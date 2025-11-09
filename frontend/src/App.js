@@ -668,6 +668,7 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
   const [showLogo, setShowLogo] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
+  const [showViewMarketplace, setShowViewMarketplace] = useState(false);
 
   useEffect(() => {
     // Fade in and drop logo after a short delay
@@ -684,11 +685,17 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
     const buttonsTimeout = setTimeout(() => {
       setShowButtons(true);
     }, 900);
+    
+    // Fade in and drop View Marketplace button after buttons
+    const viewMarketplaceTimeout = setTimeout(() => {
+      setShowViewMarketplace(true);
+    }, 1200);
 
     return () => {
       clearTimeout(logoTimeout);
       clearTimeout(titleTimeout);
       clearTimeout(buttonsTimeout);
+      clearTimeout(viewMarketplaceTimeout);
     };
   }, []);
 
@@ -767,7 +774,7 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
         </div>
         
         {/* View Marketplace Button */}
-        <div className={`flex justify-center mt-6 transition-all duration-1000 ease-out ${showButtons ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
+        <div className={`flex justify-center mt-6 transition-all duration-1000 ease-out ${showViewMarketplace ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
           <button
             onClick={onViewMarketplace}
             className="px-8 py-3 bg-white/20 backdrop-blur-sm text-white border-2 border-white/50 rounded-lg font-semibold text-base transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-amber-400 hover:bg-white/30 hover:border-white"

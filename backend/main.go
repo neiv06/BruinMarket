@@ -1321,6 +1321,7 @@ func main() {
 			protected.POST("/posts", createPost)
 			protected.DELETE("/posts/:id", deletePost)
 			protected.PUT("/posts/:id", updatePost)
+			protected.PATCH("/posts/:id/sold", markPostAsSold)
 			protected.POST("/upload", uploadMedia)
 			protected.POST("/upload-profile-picture", uploadProfilePicture)
 

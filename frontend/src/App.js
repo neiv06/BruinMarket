@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Palette, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit } from 'lucide-react';
+import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Palette, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit, CheckCircle } from 'lucide-react';
 import logo from './BruinMarketTransparent.svg';
 import Chat from './Chat.js';
 
@@ -228,6 +228,28 @@ const BruinMarket = () => {
     } catch (error) {
       console.error('Error deleting post:', error);
       alert('Failed to delete post. Please try again.');
+    }
+  };
+
+  const markAsSold = async (postId) => {
+    try {
+      const response = await fetch(`${API_URL}/posts/${postId}/sold`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to mark post as sold');
+      }
+      
+      // Reload posts to get updated data
+      loadPosts();
+    } catch (error) {
+      console.error('Error marking post as sold:', error);
+      alert('Failed to mark post as sold. Please try again.');
     }
   };
 
@@ -559,6 +581,7 @@ const BruinMarket = () => {
                     post={post} 
                     onDelete={deletePost}
                     onEdit={() => setEditingPost(post)}
+                    onMarkAsSold={markAsSold}
                     canDelete={user && post.user_id === user.id}
                     token={token}
                     onMessageUser={openChatWithUser}
@@ -1073,7 +1096,7 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
   );
 };
 
-const PostCard = ({ post, onDelete, onEdit, canDelete, token, onMessageUser, onViewUserProfile }) => {
+const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMessageUser, onViewUserProfile }) => {
   const [showFullView, setShowFullView] = useState(false);
 
   return (
@@ -1140,9 +1163,17 @@ const PostCard = ({ post, onDelete, onEdit, canDelete, token, onMessageUser, onV
                 <Tag size={16} />
                 {post.category}
               </span>
-              <span className="text-lg font-bold text-blue-600">
-                {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Will Pay: ' : ''}$${post.price}`}
-              </span>
+              <div className="relative">
+                {post.sold ? (
+                  <span className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg">
+                    SOLD
+                  </span>
+                ) : (
+                  <span className="text-lg font-bold text-blue-600">
+                    {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Will Pay: ' : ''}$${post.price}`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1157,6 +1188,7 @@ const PostCard = ({ post, onDelete, onEdit, canDelete, token, onMessageUser, onV
           onViewUserProfile={onViewUserProfile}
           onDelete={onDelete}
           onEdit={onEdit}
+          onMarkAsSold={onMarkAsSold}
           canDelete={canDelete}
         />
       )}
@@ -1164,7 +1196,7 @@ const PostCard = ({ post, onDelete, onEdit, canDelete, token, onMessageUser, onV
   );
 };
 
-const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, onDelete, onEdit, canDelete }) => {
+const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, onDelete, onEdit, onMarkAsSold, canDelete }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -1270,9 +1302,17 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                   </span>
                 )}
               </div>
-              <span className="text-3xl font-bold text-blue-600">
-                {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Willing to Pay: ' : ''}$${post.price}`}
-              </span>
+              <div className="relative">
+                {post.sold ? (
+                  <span className="px-6 py-3 bg-red-600 text-white font-bold text-2xl rounded-lg">
+                    SOLD
+                  </span>
+                ) : (
+                  <span className="text-3xl font-bold text-blue-600">
+                    {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Willing to Pay: ' : ''}$${post.price}`}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-2 flex-wrap">
@@ -1365,11 +1405,26 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                             setShowMenu(false);
                             onEdit();
                           }}
-                          className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-3 transition-all duration-200 border-b border-gray-100 last:border-b-0"
+                          className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-3 transition-all duration-200 border-b border-gray-100"
                         >
                           <Edit size={18} className="text-blue-600" />
                           <span className="font-medium">Edit Post</span>
                         </button>
+                        {!post.sold && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowMenu(false);
+                              if (window.confirm('Mark this post as sold?')) {
+                                onMarkAsSold(post.id);
+                              }
+                            }}
+                            className="w-full px-4 py-3 text-left text-sm text-orange-600 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-3 transition-all duration-200 border-b border-gray-100"
+                          >
+                            <CheckCircle size={18} className="text-orange-600" />
+                            <span className="font-medium">Mark as Sold</span>
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

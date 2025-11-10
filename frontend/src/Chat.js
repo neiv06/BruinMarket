@@ -198,12 +198,12 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
     };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-      <div className={`bg-white rounded-lg w-full max-w-5xl h-[600px] flex overflow-hidden shadow-2xl transition-all duration-500 ease-out ${
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4 transition-opacity duration-300">
+      <div className={`bg-white rounded-lg w-full max-w-5xl h-[95vh] md:h-[600px] flex flex-col md:flex-row overflow-hidden shadow-2xl transition-all duration-500 ease-out ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}>
         {/* Conversations List */}
-        <div className="w-1/3 border-r border-gray-200 flex flex-col">
+        <div className="w-full md:w-1/3 border-r border-gray-200 flex flex-col max-h-[40vh] md:max-h-none">
           <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MessageCircle size={24} />
@@ -235,7 +235,7 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                     <div className="flex items-center gap-3">
                       {otherUser.picture ? (
                         <img
-                          src={`http://localhost:8080${otherUser.picture}`}
+                          src={`${API_URL.replace('/api', '')}${otherUser.picture}`}
                           alt={otherUser.name}
                           className="w-12 h-12 rounded-full object-cover"
                         />
@@ -269,7 +269,7 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                       <>
                         {otherUser.picture ? (
                           <img
-                            src={`http://localhost:8080${otherUser.picture}`}
+                            src={`${API_URL.replace('/api', '')}${otherUser.picture}`}
                             alt={otherUser.name}
                             className="w-10 h-10 rounded-full object-cover"
                           />

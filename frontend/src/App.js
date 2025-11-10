@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Sofa, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit, CheckCircle, Github } from 'lucide-react';
+import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Sofa, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit, CheckCircle, Github, Menu } from 'lucide-react';
 import logo from './BruinMarketTransparent.svg';
 import Chat from './Chat.js';
 
@@ -61,6 +61,7 @@ const BruinMarket = () => {
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [isNavigatingToAll, setIsNavigatingToAll] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -419,61 +420,69 @@ const BruinMarket = () => {
       {/* Header - Full Width */}
       {/* <div className="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-40"> */}
       <div className="bg-gradient-to-r from-blue-500 via-sky-500 to-blue-500 text-white shadow-lg fixed top-0 left-0 right-0 z-40">
-        <div className="px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4 cursor-pointer" onClick={navigateToAll}>
-            <img src={logo} alt="BruinMarket Logo" className="h-20 w-20" />
-            <div>
-              <h1 className="text-3xl font-bold">BruinMarket</h1>
-              <p className="text-blue-100 text-sm mt-1">UCLA Student Marketplace</p>
+        <div className="px-3 md:px-8 py-2 md:py-3 flex items-center justify-between gap-2">
+          {/* Hamburger Menu - Mobile Only */}
+          <button
+            onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-all flex-shrink-0"
+          >
+            <Menu size={24} />
+          </button>
+
+          <div className="flex items-center gap-2 md:gap-4 cursor-pointer flex-1 min-w-0" onClick={navigateToAll}>
+            <img src={logo} alt="BruinMarket Logo" className="h-12 w-12 md:h-20 md:w-20 flex-shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold truncate">BruinMarket</h1>
+              <p className="text-blue-100 text-xs md:text-sm mt-0 md:mt-1 hidden sm:block">UCLA Student Marketplace</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
             {user ? (
               <>
                 <button
                   onClick={() => setShowProfile(!showProfile)}
-                  className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                  className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-2 md:px-4 py-2 rounded-lg transition-all"
                 >
-                  <User size={20} />
-                  {user.name}
+                  <User size={18} className="md:w-5 md:h-5" />
+                  <span className="hidden md:inline text-sm truncate max-w-[100px]">{user.name}</span>
                 </button>
                 <button
                     onClick={() => setShowChat(true)}
-                    className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                    className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-2 md:px-4 py-2 rounded-lg transition-all"
                   >
-                    <MessageCircle size={20} />
-                    Messages
+                    <MessageCircle size={18} className="md:w-5 md:h-5" />
+                    <span className="hidden lg:inline text-sm">Messages</span>
                   </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-300 shadow-md hover:scale-105 hover:shadow-xl"
+                  className="hidden md:flex items-center gap-2 bg-white text-blue-600 px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all"
                 >
                   <Plus size={20} />
-                  Create Post
+                  <span className="hidden lg:inline">Create Post</span>
                 </button>
                 <button
                   onClick={logout}
-                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                  className="flex items-center justify-center bg-red-500 hover:bg-red-600 text-white p-2 md:px-4 md:py-2 rounded-lg transition-all"
                 >
-                  <LogOut size={20} />
+                  <LogOut size={18} className="md:w-5 md:h-5" />
                 </button>
               </>
             ) : (
               <button
                 onClick={() => setShowAuthModal({ show: true, isSignUp: false })}
-                className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-300 shadow-md hover:scale-105 hover:shadow-xl"
+                className="flex items-center gap-2 bg-white text-blue-600 px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all"
               >
                 <User size={20} />
-                Login / Sign Up
+                <span className="hidden sm:inline">Login / Sign Up</span>
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Fixed Left Sidebar */}
+      {/* Fixed Left Sidebar - Desktop */}
       {/* <div className="w-64 bg-white shadow-lg fixed left-0 top-[100px] bottom-0 overflow-y-auto"> */}
-      <div className="w-64 bg-gradient-to-b from-white via-sky-100 to-sky-200 shadow-lg fixed left-0 top-[100px] bottom-0 overflow-y-auto border-r border-amber-300/20">
+      <div className="hidden lg:block w-64 bg-gradient-to-b from-white via-sky-100 to-sky-200 shadow-lg fixed left-0 top-[100px] bottom-0 overflow-y-auto border-r border-amber-300/20">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <h2 className="text-2xl font-bold text-blue-600">Marketplace</h2>
@@ -558,11 +567,117 @@ const BruinMarket = () => {
         </div>
       </div>
 
+      {/* Mobile Sidebar - Slide-in Overlay */}
+      {showMobileSidebar && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setShowMobileSidebar(false)}
+          />
+          
+          {/* Sidebar Panel */}
+          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-gradient-to-b from-white via-sky-100 to-sky-200 shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0 bg-white">
+              <h2 className="text-xl font-bold text-blue-600">Filters</h2>
+              <button
+                onClick={() => setShowMobileSidebar(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Search */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search items..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Categories */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">Categories</label>
+                <div className="space-y-1">
+                  {categories.map((cat) => {
+                    const IconComponent = cat.icon;
+                    return (
+                      <button
+                        key={cat.value}
+                        onClick={() => {
+                          setFilterCategory(cat.value);
+                          setShowProfile(false);
+                          setShowMobileSidebar(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-left ${
+                          filterCategory === cat.value && !showProfile
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <IconComponent size={20} />
+                        <span className="text-sm font-medium">{cat.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Type Filter */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="all">All Types</option>
+                  <option value="selling">Selling</option>
+                  <option value="buying">Looking to Buy</option>
+                </select>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+                <div className="space-y-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange({...priceRange, min: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange({...priceRange, max: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <div className={`flex-1 ml-64 mt-[100px] transition-all duration-500 ease-out ${
+      <div className={`flex-1 lg:ml-64 mt-[70px] md:mt-[100px] transition-all duration-500 ease-out ${
         isNavigatingToAll ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'
       }`}>
-        <div className="p-8">
+        <div className="p-4 md:p-8">
           {viewingUserProfile ? (
             <OtherUserProfile 
               profileData={viewingUserProfile} 
@@ -579,7 +694,7 @@ const BruinMarket = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                 {posts.map(post => (
                   <PostCard 
                     key={post.id} 
@@ -651,6 +766,14 @@ const BruinMarket = () => {
           token={token}
         />
       )}
+
+      {/* Mobile FAB for Create Post */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="md:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-transform hover:bg-blue-700"
+      >
+        <Plus size={28} />
+      </button>
       </div>
     </div>
   );
@@ -910,7 +1033,7 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
           <p className="text-white text-lg">You haven't created any posts yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {myPosts.map(post => (
             <PostCard 
               key={post.id} 
@@ -979,7 +1102,7 @@ const OtherUserProfile = ({ profileData, token, onClose, onViewUserProfile }) =>
           <p className="text-gray-500 text-lg">This user hasn't created any posts yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {posts.map(post => (
             <PostCard 
               key={post.id} 

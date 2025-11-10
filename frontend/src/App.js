@@ -452,6 +452,11 @@ const BruinMarket = () => {
             </div>
           </div>
           <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
+            {/* {!user && viewMarketplaceWithoutLogin && (
+              <span className="text-xs sm:text-sm md:text-base text-white-100 font-medium hidden sm:inline mr-2 md:mr-4">
+                Login / Sign Up to post and send messages!
+              </span>
+            )} */}
             {user ? (
               <>
                 <button

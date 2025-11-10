@@ -920,16 +920,6 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
           </button>
         </div>
         
-        {/* View Marketplace Button */}
-        <div className={`flex justify-center mt-6 transition-all duration-1000 ease-out ${showViewMarketplace ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
-          <button
-            onClick={onViewMarketplace}
-            className="px-8 py-3 bg-white/20 backdrop-blur-sm text-white border-2 border-white/50 rounded-lg font-semibold text-base transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-amber-400 hover:bg-white/30 hover:border-white"
-          >
-            View Marketplace
-          </button>
-        </div>
-        
         {/* Mobile App coming soon text */}
         <p className={`italic text-sm text-gray-300 mt-6 transition-all duration-1000 ease-out ${showTitle ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
           mobile app coming soon

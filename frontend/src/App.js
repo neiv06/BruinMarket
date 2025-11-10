@@ -439,7 +439,7 @@ const BruinMarket = () => {
           {/* Hamburger Menu - Mobile Only */}
           <button
             onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-all duration-300 hover:scale-110 hover:shadow-lg flex-shrink-0"
+            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-white bg-opacity-20 transition-all duration-300 flex-shrink-0"
           >
             <Menu size={24} />
           </button>
@@ -456,25 +456,27 @@ const BruinMarket = () => {
               <>
                 <button
                   onClick={() => setShowProfile(!showProfile)}
-                  className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 md:px-6 py-3 md:py-3 rounded-lg hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                  className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 text-white px-3 md:px-6 py-3 md:py-3 rounded-lg transition-all duration-300 md:hover:bg-opacity-30 md:hover:bg-blue-50 md:hover:scale-105 md:hover:shadow-lg"
                 >
                   <User size={18} className="md:w-5 md:h-5" />
                   <span className="hidden md:inline text-sm truncate max-w-[100px]">{user.name}</span>
                 </button>
                 <button
                     onClick={() => setShowChat(true)}
-                    className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 md:px-6 py-3 md:py-3 rounded-lg hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                    className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 text-white px-3 md:px-6 py-3 md:py-3 rounded-lg transition-all duration-300 md:hover:bg-opacity-30 md:hover:bg-blue-50 md:hover:scale-105 md:hover:shadow-lg"
                   >
                     <MessageCircle size={18} className="md:w-5 md:h-5" />
                     <span className="hidden lg:inline text-sm">Messages</span>
                   </button>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="hidden md:flex items-center gap-2 bg-white text-blue-600 px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg"
-                >
-                  <Plus size={20} />
-                  <span className="hidden lg:inline">Create Post</span>
-                </button>
+                {!showCreateModal && (
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="hidden md:flex items-center gap-2 bg-white text-blue-600 px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                  >
+                    <Plus size={20} />
+                    <span className="hidden lg:inline">Create Post</span>
+                  </button>
+                )}
                 <button
                   onClick={logout}
                   className="flex items-center justify-center bg-red-500 hover:bg-red-600 text-white p-2 md:px-4 md:py-2 rounded-lg transition-all"
@@ -600,7 +602,7 @@ const BruinMarket = () => {
               <h2 className="text-xl font-bold text-blue-600">Filters</h2>
               <button
                 onClick={() => setShowMobileSidebar(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-all duration-300 hover:scale-110 hover:rotate-90"
+                className="p-2 rounded-lg transition-all duration-300"
               >
                 <X size={24} />
               </button>
@@ -639,8 +641,8 @@ const BruinMarket = () => {
                         }}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 text-left ${
                           filterCategory === cat.value && !showProfile
-                            ? 'bg-blue-600 text-white hover:scale-105 hover:shadow-lg hover:bg-blue-700'
-                            : 'text-gray-700 hover:bg-gray-100 hover:scale-105 hover:shadow-md hover:bg-blue-50'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-700'
                         }`}
                       >
                         <IconComponent size={20} />
@@ -785,10 +787,10 @@ const BruinMarket = () => {
       )}
 
       {/* Mobile FAB for Create Post - Fixed at bottom center, hidden when sidebar or chat is open */}
-      {user && !showMobileSidebar && !showChat && (
+      {user && !showMobileSidebar && !showChat && !showCreateModal && (
         <button
           onClick={() => setShowCreateModal(true)}
-          className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:bg-blue-700 hover:scale-110 active:scale-95 hover:shadow-amber-400/60"
+          className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 active:scale-95"
         >
           <Plus size={28} />
         </button>
@@ -1415,7 +1417,7 @@ const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMe
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-2xl hover:shadow-amber-400/60 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-amber-300/60 hover:-translate-y-1 active:translate-y-0 hover:z-10 relative">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden active:scale-[0.98] transition-all duration-300 cursor-pointer active:translate-y-0 relative md:hover:shadow-2xl md:hover:shadow-amber-400/60 md:hover:scale-[1.02] md:hover:ring-2 md:hover:ring-amber-300/60 md:hover:-translate-y-1 md:hover:z-10">
         <div onClick={() => setShowFullView(true)}>
           {post.media && post.media.length > 0 && (
             <div className="relative h-48 bg-gray-200">

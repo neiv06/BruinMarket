@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Sofa, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit, CheckCircle, Github } from 'lucide-react';
-// import logo from './BruinMarketTransparent.svg';
+import logo from './BruinMarketTransparent.svg';
 import Chat from './Chat.js';
-
-const logo = '/BruinMarketTransparent.svg';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 

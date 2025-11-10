@@ -62,11 +62,8 @@ const BruinMarket = () => {
   const [isNavigatingToAll, setIsNavigatingToAll] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
   const [viewMarketplaceWithoutLogin, setViewMarketplaceWithoutLogin] = useState(false);
-<<<<<<< HEAD
-=======
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [mobileSidebarVisible, setMobileSidebarVisible] = useState(false);
->>>>>>> mobile-web-ui
 
   useEffect(() => {
     if (token) {
@@ -809,7 +806,6 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
   const [showTitle, setShowTitle] = useState(false);
   const [showViewMarketplace, setShowViewMarketplace] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
-  const [showViewMarketplace, setShowViewMarketplace] = useState(false);
 
   useEffect(() => {
     // Fade in and drop logo after a short delay
@@ -830,14 +826,6 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
     // Fade in and drop buttons after View Marketplace button
     const buttonsTimeout = setTimeout(() => {
       setShowButtons(true);
-<<<<<<< HEAD
-    }, 900);
-    
-    // Fade in and drop View Marketplace button after buttons
-    const viewMarketplaceTimeout = setTimeout(() => {
-      setShowViewMarketplace(true);
-=======
->>>>>>> mobile-web-ui
     }, 1200);
 
     return () => {
@@ -845,7 +833,6 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
       clearTimeout(titleTimeout);
       clearTimeout(viewMarketplaceTimeout);
       clearTimeout(buttonsTimeout);
-      clearTimeout(viewMarketplaceTimeout);
     };
   }, []);
 
@@ -1114,11 +1101,6 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
           {/* User Info */}
           <div className="flex-1">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{user.name}</h2>
-<<<<<<< HEAD
-            {user.year && (
-              <p className="text-lg text-gray-600 mb-2">Year: {user.year}</p>
-            )}
-=======
             <div className="mb-2">
               {editingYear ? (
                 <div className="flex items-center gap-2">
@@ -1173,7 +1155,6 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
                 </div>
               )}
             </div>
->>>>>>> mobile-web-ui
             {/* <p className="text-gray-600 mb-4">{user.email}</p> */}
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <span>Total Posts: {myPosts.length}</span>

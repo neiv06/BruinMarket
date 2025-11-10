@@ -635,6 +635,12 @@ func register(c *gin.Context) {
 	}
 
 	userID := uuid.New().String()
+	// Ensure the year column exists
+	_, err = db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS year VARCHAR(50)`)
+	if err != nil {
+		log.Printf("Warning: Could not ensure year column exists: %v", err)
+	}
+
 	_, err = db.Exec(
 		"INSERT INTO users (id, email, name, year, password, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		userID, req.Email, req.Name, req.Year, string(hashedPassword), time.Now(),
@@ -1290,6 +1296,40 @@ func uploadProfilePicture(c *gin.Context) {
 	})
 }
 
+func updateUserYear(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var requestBody struct {
+		Year string `json:"year" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate year value
+	validYears := map[string]bool{
+		"Freshman":  true,
+		"Sophomore": true,
+		"Junior":    true,
+		"Senior":    true,
+		"Graduate":  true,
+	}
+	if !validYears[requestBody.Year] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid year value"})
+		return
+	}
+
+	_, err := db.Exec("UPDATE users SET year = $1 WHERE id = $2", requestBody.Year, userID)
+	if err != nil {
+		log.Printf("Error updating user year: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update year"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "year updated successfully"})
+}
+
 func main() {
 	if err := initDB(); err != nil {
 		log.Fatal("Failed to connect to database:", err)
@@ -1346,6 +1386,7 @@ func main() {
 			protected.PATCH("/posts/:id/sold", markPostAsSold)
 			protected.POST("/upload", uploadMedia)
 			protected.POST("/upload-profile-picture", uploadProfilePicture)
+			protected.PATCH("/auth/year", updateUserYear)
 
 			// Chat routes
 			protected.GET("/conversations", getConversations)

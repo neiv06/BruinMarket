@@ -718,7 +718,7 @@ const BruinMarket = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 items-start">
                 {posts.map(post => (
                   <PostCard 
                     key={post.id} 
@@ -1172,7 +1172,7 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
           <p className="text-white text-lg">You haven't created any posts yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 items-start">
           {myPosts.map(post => (
             <PostCard 
               key={post.id} 
@@ -1244,7 +1244,7 @@ const OtherUserProfile = ({ profileData, token, onClose, onViewUserProfile }) =>
           <p className="text-gray-500 text-lg">This user hasn't created any posts yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 items-start">
           {posts.map(post => (
             <PostCard 
               key={post.id} 

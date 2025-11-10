@@ -857,7 +857,7 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
       {/* Beta label and GitHub link in top left */}
-      <div className="absolute top-6 left-6 z-20 flex items-center gap-3">
+      {/* <div className="absolute top-6 left-6 z-20 flex items-center gap-3">
         <span className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-sm font-semibold rounded-full border border-white/30">
           Beta
         </span>
@@ -870,7 +870,7 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
         >
           <Github size={20} />
         </a>
-      </div>
+      </div> */}
       
       {/* Blurred background image */}
       <div 

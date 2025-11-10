@@ -227,6 +227,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 - Mobile app version coming soon
 - Default JWT secret should be changed in production
 - File uploads are stored locally (consider cloud storage for production)
+- LLMs used to assist development: Claude Sonnet 4.5, ChatGPT 5, Cursor
 
 ## 🤝 Contributing
 

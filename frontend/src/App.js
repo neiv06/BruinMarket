@@ -61,7 +61,9 @@ const BruinMarket = () => {
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [isNavigatingToAll, setIsNavigatingToAll] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
+  const [viewMarketplaceWithoutLogin, setViewMarketplaceWithoutLogin] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [mobileSidebarVisible, setMobileSidebarVisible] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -85,6 +87,15 @@ const BruinMarket = () => {
       loadPosts();
     }
   }, [filterCategory, filterType, priceRange, searchTerm, showProfile]);
+
+  useEffect(() => {
+    if (showMobileSidebar) {
+      // Trigger slide-in animation
+      setTimeout(() => setMobileSidebarVisible(true), 10);
+    } else {
+      setMobileSidebarVisible(false);
+    }
+  }, [showMobileSidebar]);
 
   useEffect(() => {
     // Trigger fade-in animation for marketplace when user is logged in
@@ -371,7 +382,7 @@ const BruinMarket = () => {
   // Show landing page if user is not logged in (wait for auth check to complete)
   // Only show loading if we have a token and are checking auth
   if (checkingAuth && token) {
-    return (
+  return (
       <div className="min-h-screen bg-gradient-to-br from-sky-50 via-sky-50/30 to-amber-50 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
@@ -381,8 +392,8 @@ const BruinMarket = () => {
     );
   }
 
-  // Show landing page if no token or no user
-  if (!token || !user) {
+  // Show landing page if no token or no user (unless viewing marketplace without login)
+  if ((!token || !user) && !viewMarketplaceWithoutLogin) {
     return (
       <LandingPage 
         onLogin={() => setShowAuthModal({ show: true, isSignUp: false })}
@@ -392,6 +403,10 @@ const BruinMarket = () => {
           setUser(user);
           localStorage.setItem('token', token);
           setShowAuthModal({ show: false, isSignUp: false });
+        }}
+        onViewMarketplace={() => {
+          setViewMarketplaceWithoutLogin(true);
+          setShowMarketplace(true);
         }}
         showAuthModal={showAuthModal}
         setShowAuthModal={setShowAuthModal}
@@ -424,7 +439,7 @@ const BruinMarket = () => {
           {/* Hamburger Menu - Mobile Only */}
           <button
             onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-all flex-shrink-0"
+            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-all duration-300 hover:scale-110 hover:shadow-lg flex-shrink-0"
           >
             <Menu size={24} />
           </button>
@@ -441,21 +456,21 @@ const BruinMarket = () => {
               <>
                 <button
                   onClick={() => setShowProfile(!showProfile)}
-                  className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-2 md:px-4 py-2 rounded-lg transition-all"
+                  className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 md:px-6 py-3 md:py-3 rounded-lg hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg"
                 >
                   <User size={18} className="md:w-5 md:h-5" />
                   <span className="hidden md:inline text-sm truncate max-w-[100px]">{user.name}</span>
                 </button>
                 <button
                     onClick={() => setShowChat(true)}
-                    className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-2 md:px-4 py-2 rounded-lg transition-all"
+                    className="flex items-center gap-1 md:gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 md:px-6 py-3 md:py-3 rounded-lg hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg"
                   >
                     <MessageCircle size={18} className="md:w-5 md:h-5" />
                     <span className="hidden lg:inline text-sm">Messages</span>
                   </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="hidden md:flex items-center gap-2 bg-white text-blue-600 px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all"
+                  className="hidden md:flex items-center gap-2 bg-white text-blue-600 px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg"
                 >
                   <Plus size={20} />
                   <span className="hidden lg:inline">Create Post</span>
@@ -485,7 +500,7 @@ const BruinMarket = () => {
       <div className="hidden lg:block w-64 bg-gradient-to-b from-white via-sky-100 to-sky-200 shadow-lg fixed left-0 top-[100px] bottom-0 overflow-y-auto border-r border-amber-300/20">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
-            <h2 className="text-2xl font-bold text-blue-600">Marketplace</h2>
+            <h2 className="text-2xl font-bold text-blue-600">Filters</h2>
           </div>
           
           {/* Search */}
@@ -518,8 +533,8 @@ const BruinMarket = () => {
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 text-left ${
                       filterCategory === cat.value && !showProfile
-                        ? 'bg-blue-600 text-white hover:scale-105 hover:shadow-lg'
-                        : 'text-gray-700 hover:bg-gray-100 hover:scale-105 hover:shadow-md'
+                        ? 'bg-blue-600 text-white hover:scale-105 hover:shadow-lg hover:bg-blue-700'
+                        : 'text-gray-700 hover:bg-gray-100 hover:scale-105 hover:shadow-md hover:bg-blue-50'
                     }`}
                   >
                     <IconComponent size={20} />
@@ -572,18 +587,20 @@ const BruinMarket = () => {
         <div className="lg:hidden fixed inset-0 z-50">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300"
             onClick={() => setShowMobileSidebar(false)}
           />
           
           {/* Sidebar Panel */}
-          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-gradient-to-b from-white via-sky-100 to-sky-200 shadow-2xl overflow-hidden flex flex-col">
+          <div className={`absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-gradient-to-b from-white via-sky-100 to-sky-200 shadow-2xl overflow-hidden flex flex-col transform transition-transform duration-300 ease-out ${
+            mobileSidebarVisible ? 'translate-x-0' : '-translate-x-full'
+          }`}>
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0 bg-white">
               <h2 className="text-xl font-bold text-blue-600">Filters</h2>
               <button
                 onClick={() => setShowMobileSidebar(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-gray-100 transition-all duration-300 hover:scale-110 hover:rotate-90"
               >
                 <X size={24} />
               </button>
@@ -620,10 +637,10 @@ const BruinMarket = () => {
                           setShowProfile(false);
                           setShowMobileSidebar(false);
                         }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-left ${
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 text-left ${
                           filterCategory === cat.value && !showProfile
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-700 hover:bg-gray-100'
+                            ? 'bg-blue-600 text-white hover:scale-105 hover:shadow-lg hover:bg-blue-700'
+                            : 'text-gray-700 hover:bg-gray-100 hover:scale-105 hover:shadow-md hover:bg-blue-50'
                         }`}
                       >
                         <IconComponent size={20} />
@@ -767,24 +784,27 @@ const BruinMarket = () => {
         />
       )}
 
-      {/* Mobile FAB for Create Post */}
-      <button
-        onClick={() => setShowCreateModal(true)}
-        className="md:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-transform hover:bg-blue-700"
-      >
-        <Plus size={28} />
-      </button>
+      {/* Mobile FAB for Create Post - Fixed at bottom center, hidden when sidebar or chat is open */}
+      {user && !showMobileSidebar && !showChat && (
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:bg-blue-700 hover:scale-110 active:scale-95 hover:shadow-amber-400/60"
+        >
+          <Plus size={28} />
+        </button>
+      )}
       </div>
     </div>
   );
 };
 
-const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, showAuthModal, setShowAuthModal }) => {
+const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, showAuthModal, setShowAuthModal }) => {
   const [displayedText, setDisplayedText] = useState('');
   const fullText = 'UCLA Student Marketplace';
   const [isTyping, setIsTyping] = useState(true);
   const [showLogo, setShowLogo] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
+  const [showViewMarketplace, setShowViewMarketplace] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
 
   useEffect(() => {
@@ -798,14 +818,20 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, showAuthModal, setShowA
       setShowTitle(true);
     }, 600);
     
-    // Fade in and drop buttons after title
+    // Fade in and drop View Marketplace button after title
+    const viewMarketplaceTimeout = setTimeout(() => {
+      setShowViewMarketplace(true);
+    }, 900);
+    
+    // Fade in and drop buttons after View Marketplace button
     const buttonsTimeout = setTimeout(() => {
       setShowButtons(true);
-    }, 900);
+    }, 1200);
 
     return () => {
       clearTimeout(logoTimeout);
       clearTimeout(titleTimeout);
+      clearTimeout(viewMarketplaceTimeout);
       clearTimeout(buttonsTimeout);
     };
   }, []);
@@ -868,6 +894,16 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, showAuthModal, setShowA
           </p>
         </div>
         
+        {/* View Marketplace Button */}
+        <div className={`flex justify-center mb-6 transition-all duration-1000 ease-out ${showViewMarketplace ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
+          <button
+            onClick={onViewMarketplace}
+            className="px-8 py-3 bg-white/20 backdrop-blur-sm text-white border-2 border-white/50 rounded-lg font-semibold text-base transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-amber-400 hover:bg-white/30 hover:border-white"
+          >
+            View Marketplace
+          </button>
+        </div>
+        
         {/* Buttons */}
         <div className={`flex gap-6 justify-center transition-all duration-1000 ease-out ${showButtons ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
           <button
@@ -906,10 +942,17 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
   const [myPosts, setMyPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [editingYear, setEditingYear] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(user.year || '');
+  const [updatingYear, setUpdatingYear] = useState(false);
 
   useEffect(() => {
     loadMyPosts();
   }, []);
+
+  useEffect(() => {
+    setSelectedYear(user.year || '');
+  }, [user.year]);
 
   const loadMyPosts = async () => {
     try {
@@ -977,6 +1020,41 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
     }
   };
 
+  const handleYearUpdate = async () => {
+    if (!selectedYear) {
+      alert('Please select a year');
+      return;
+    }
+
+    setUpdatingYear(true);
+
+    try {
+      const response = await fetch(`${API_URL}/auth/year`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ year: selectedYear })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update year');
+      }
+
+      // Update user state
+      user.year = selectedYear;
+      setEditingYear(false);
+      window.location.reload(); // Reload to update all instances
+    } catch (error) {
+      console.error('Error updating year:', error);
+      alert(error.message || 'Failed to update year');
+    } finally {
+      setUpdatingYear(false);
+    }
+  };
+
   return (
     <div>
       <div className="bg-white rounded-lg shadow-md p-8 mb-8">
@@ -1013,7 +1091,61 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit }) => {
           {/* User Info */}
           <div className="flex-1">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{user.name}</h2>
-            <p className="text-gray-600 mb-4">{user.email}</p>
+            <div className="mb-2">
+              {editingYear ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                    disabled={updatingYear}
+                  >
+                    <option value="">Select Year</option>
+                    <option value="Freshman">Freshman</option>
+                    <option value="Sophomore">Sophomore</option>
+                    <option value="Junior">Junior</option>
+                    <option value="Senior">Senior</option>
+                    <option value="Graduate">Graduate</option>
+                  </select>
+                  <button
+                    onClick={handleYearUpdate}
+                    disabled={updatingYear}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+                  >
+                    {updatingYear ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingYear(false);
+                      setSelectedYear(user.year || '');
+                    }}
+                    disabled={updatingYear}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {user.year ? (
+                    <p className="text-lg text-gray-600">{user.year}</p>
+                  ) : (
+                    <p className="text-lg text-gray-400 italic">No year set</p>
+                  )}
+                  <button
+                    onClick={() => {
+                      setEditingYear(true);
+                      setSelectedYear(user.year || '');
+                    }}
+                    className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                    title="Edit year"
+                  >
+                    <Edit size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* <p className="text-gray-600 mb-4">{user.email}</p> */}
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <span>Total Posts: {myPosts.length}</span>
             </div>
@@ -1123,7 +1255,8 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    name: ''
+    name: '',
+    year: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1139,6 +1272,12 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
   const handleSubmit = async () => {
     setError('');
     setLoading(true);
+
+    if (!isLogin && !formData.year) {
+      setError('Please select your year');
+      setLoading(false);
+      return;
+    }
 
     if (!formData.email.endsWith('@ucla.edu')) {
       setError('Please use a @ucla.edu email address');
@@ -1193,15 +1332,32 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
 
         <div className="space-y-4">
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                <select
+                  value={formData.year}
+                  onChange={(e) => setFormData({...formData, year: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Year</option>
+                  <option value="Freshman">Freshman</option>
+                  <option value="Sophomore">Sophomore</option>
+                  <option value="Junior">Junior</option>
+                  <option value="Senior">Senior</option>
+                  <option value="Graduate">Graduate</option>
+                </select>
+              </div>
+            </>
           )}
 
           <div>
@@ -1250,7 +1406,7 @@ const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMe
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-2xl hover:shadow-amber-400/60 hover:scale-[1.02] transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-amber-300/60 hover:-translate-y-1 relative">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-2xl hover:shadow-amber-400/60 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-amber-300/60 hover:-translate-y-1 active:translate-y-0 hover:z-10 relative">
         <div onClick={() => setShowFullView(true)}>
           {post.media && post.media.length > 0 && (
             <div className="relative h-48 bg-gray-200">
@@ -1291,7 +1447,7 @@ const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMe
                 </div>
               )}
               <div className="flex-1">
-                <p className="text-xs text-gray-500">{post.user_name}</p>
+              <p className="text-xs text-gray-500">{post.user_name}</p>
                 {post.created_at && (
                   <p className="text-xs text-gray-400">{formatDate(post.created_at)}</p>
                 )}
@@ -1319,13 +1475,13 @@ const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMe
                   </span>
                 ) : (
                   <span className="text-lg font-bold text-blue-600">
-                    {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Will Pay: ' : ''}$${post.price}`}
-                  </span>
+              {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Will Pay: ' : ''}$${post.price}`}
+              </span>
                 )}
-              </div>
             </div>
           </div>
         </div>
+          </div>
       </div>
 
       {showFullView && (
@@ -1333,7 +1489,7 @@ const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMe
           post={post} 
           token={token} 
           onClose={() => setShowFullView(false)} 
-          onMessageUser={onMessageUser}
+          onMessageUser={onMessageUser} 
           onViewUserProfile={onViewUserProfile}
           onDelete={onDelete}
           onEdit={onEdit}
@@ -1384,7 +1540,7 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
           </button>
         </div>
         <div className="overflow-y-auto flex-1">
-          <div className="p-6">
+        <div className="p-6">
           {post.media && post.media.length > 0 && (
             <div className="mb-6">
               <div className="relative bg-gray-100 rounded-lg overflow-hidden mb-4 h-72">
@@ -1399,19 +1555,19 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                 />
                 {/* Media content on top */}
                 <div className="relative z-10 h-full flex items-center justify-center">
-                  {post.media[currentMediaIndex].type.startsWith('image/') ? (
-                    <img 
+                {post.media[currentMediaIndex].type.startsWith('image/') ? (
+                  <img 
                       src={`${API_URL.replace('/api', '')}${post.media[currentMediaIndex].url}`}
-                      alt={`Media ${currentMediaIndex + 1}`}
+                    alt={`Media ${currentMediaIndex + 1}`}
                       className="max-w-full max-h-full object-contain"
-                    />
-                  ) : (
-                    <video 
+                  />
+                ) : (
+                  <video 
                       src={`${API_URL.replace('/api', '')}${post.media[currentMediaIndex].url}`}
-                      controls
+                    controls
                       className="max-w-full max-h-full"
-                    />
-                  )}
+                  />
+                )}
                 </div>
               </div>
               
@@ -1440,11 +1596,11 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className={`px-4 py-2 rounded-lg font-semibold ${
-                  post.type === 'selling' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                }`}>
-                  {post.type === 'selling' ? 'Selling' : 'Looking to Buy'}
-                </span>
+              <span className={`px-4 py-2 rounded-lg font-semibold ${
+                post.type === 'selling' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+              }`}>
+                {post.type === 'selling' ? 'Selling' : 'Looking to Buy'}
+              </span>
                 {post.type === 'selling' && post.condition && (
                   <span className="px-4 py-2 rounded-lg font-medium bg-gray-100 text-gray-700 border border-gray-300 whitespace-nowrap">
                     {post.condition}
@@ -1457,9 +1613,9 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                     SOLD
                   </span>
                 ) : (
-                  <span className="text-3xl font-bold text-blue-600">
-                    {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Willing to Pay: ' : ''}$${post.price}`}
-                  </span>
+              <span className="text-3xl font-bold text-blue-600">
+              {post.price === 0 ? 'Free' : `${post.type === 'buying' ? 'Willing to Pay: ' : ''}$${post.price}`}
+              </span>
                 )}
               </div>
             </div>
@@ -1525,7 +1681,7 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-300 hover:scale-105 hover:shadow-lg"
               >
                 <MessageCircle size={20} />
-                Message
+                <span className="hidden md:inline">Message</span>
               </button>
             </div>
             {post.location && (
@@ -1594,7 +1750,7 @@ const PostFullView = ({ post, token, onClose, onMessageUser, onViewUserProfile, 
               </div>
               <p className="text-gray-700 whitespace-pre-wrap">{post.description}</p>
             </div>
-          </div>
+            </div>
           </div>
         </div>
       </div>

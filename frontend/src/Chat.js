@@ -15,13 +15,15 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
     const messagesEndRef = useRef(null);
     const selectedConversationRef = useRef(null);
     const [isVisible, setIsVisible] = useState(false);
-
+    const isMountedRef = useRef(true);
+    const wsRef = useRef(null);
 
     useEffect(() => {
         selectedConversationRef.current = selectedConversation;
       }, [selectedConversation]);
   
     useEffect(() => {
+      isMountedRef.current = true;
       loadConversations();
       connectWebSocket();
 
@@ -30,12 +32,21 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
       }
   
       // Trigger fade-in and pull-up animation
-      setTimeout(() => setIsVisible(true), 10);
+      setTimeout(() => {
+        if (isMountedRef.current) {
+          setIsVisible(true);
+        }
+      }, 10);
   
       return () => {
-        if (ws) {
-          ws.close();
+        isMountedRef.current = false;
+        if (wsRef.current) {
+          wsRef.current.onclose = null; // Prevent reconnection
+          wsRef.current.close();
+          wsRef.current = null;
         }
+        setWs(null);
+        setWsReady(false);
       };
     }, []);
   
@@ -50,18 +61,29 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
     }, [messages]);
   
     const connectWebSocket = () => {
+        if (!isMountedRef.current) return;
+        
         console.log('Attempting WebSocket connection...');
         console.log('Token:', token ? 'Token exists' : 'NO TOKEN');
         
         setTimeout(() => {
+          if (!isMountedRef.current) return;
+          
           const websocket = new WebSocket(`${WS_URL}?token=${token}`);
+          wsRef.current = websocket;
         
           websocket.onopen = () => {
+            if (!isMountedRef.current) {
+              websocket.close();
+              return;
+            }
             console.log(' WebSocket connected successfully!');
             setWsReady(true);
           };
         
           websocket.onmessage = (event) => {
+            if (!isMountedRef.current) return;
+            
             console.log('📨 Message received:', event.data);
             const data = JSON.parse(event.data);
             
@@ -92,17 +114,26 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
           };
         
           websocket.onerror = (error) => {
+            if (!isMountedRef.current) return;
             console.error(' WebSocket error:', error);
             setWsReady(false);
           };
         
           websocket.onclose = (event) => {
+            if (!isMountedRef.current) return;
+            
             console.log('🔌 WebSocket closed. Code:', event.code, 'Reason:', event.reason);
             setWsReady(false);
-            setTimeout(() => {
-              console.log(' Attempting to reconnect...');
-              connectWebSocket();
-            }, 3000);
+            
+            // Only reconnect if component is still mounted
+            if (isMountedRef.current) {
+              setTimeout(() => {
+                if (isMountedRef.current) {
+                  console.log(' Attempting to reconnect...');
+                  connectWebSocket();
+                }
+              }, 3000);
+            }
           };
         
           setWs(websocket);
@@ -110,34 +141,42 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
       };
   
     const loadConversations = async () => {
+      if (!isMountedRef.current) return;
+      
       try {
         const response = await fetch(`${API_URL}/conversations`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        if (response.ok) {
+        if (response.ok && isMountedRef.current) {
           const data = await response.json();
           setConversations(data || []);
         }
       } catch (error) {
-        console.error('Error loading conversations:', error);
+        if (isMountedRef.current) {
+          console.error('Error loading conversations:', error);
+        }
       }
     };
   
     const loadMessages = async (conversationId) => {
+      if (!isMountedRef.current) return;
+      
       try {
         const response = await fetch(`${API_URL}/messages/${conversationId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        if (response.ok) {
+        if (response.ok && isMountedRef.current) {
           const data = await response.json();
           setMessages(data || []);
         }
       } catch (error) {
-        console.error('Error loading messages:', error);
+        if (isMountedRef.current) {
+          console.error('Error loading messages:', error);
+        }
       }
     };
   
@@ -197,11 +236,27 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
       }
     };
 
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(() => {
+      if (isMountedRef.current) {
+        onClose();
+      }
+    }, 300); // Wait for animation to complete
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4 transition-opacity duration-300">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4 transition-opacity duration-300"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleClose();
+        }
+      }}
+    >
       <div className={`bg-white rounded-lg w-full max-w-5xl h-[95vh] md:h-[600px] flex flex-col md:flex-row overflow-hidden shadow-2xl transition-all duration-500 ease-out ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      }`}>
+      }`} onClick={(e) => e.stopPropagation()}>
         {/* Conversations List */}
         <div className="w-full md:w-1/3 border-r border-gray-200 flex flex-col max-h-[40vh] md:max-h-none">
           <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
@@ -209,7 +264,7 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
               <MessageCircle size={24} />
               <h2 className="text-xl font-bold">Messages</h2>
             </div>
-            <button onClick={onClose} className="text-white hover:text-gray-200">
+            <button onClick={handleClose} className="text-white hover:text-gray-200">
               <X size={24} />
             </button>
           </div>

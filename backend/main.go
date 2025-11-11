@@ -316,7 +316,12 @@ func initDB() error {
 	}
 
 	// Initialize email service
-	emailService = services.NewEmailService()
+	emailService, err = services.NewEmailService()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize email service: %v", err)
+		log.Printf("Email functionality will be disabled. Set SENDGRID_API_KEY and SENDGRID_FROM_EMAIL environment variables to enable.")
+		// Continue without email service - registration will still work but emails won't be sent
+	}
 
 	return nil
 }
@@ -694,9 +699,13 @@ func register(c *gin.Context) {
 	}
 
 	// Send verification email
-	if err := emailService.SendVerificationEmail(req.Email, req.Name, verificationToken); err != nil {
-		log.Printf("Failed to send verification email: %v", err)
-		// Don't fail registration if email fails, user can resend
+	if emailService != nil {
+		if err := emailService.SendVerificationEmail(req.Email, req.Name, verificationToken); err != nil {
+			log.Printf("Failed to send verification email: %v", err)
+			// Don't fail registration if email fails, user can resend
+		}
+	} else {
+		log.Printf("Warning: Email service not initialized. Verification email not sent for %s", req.Email)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -811,9 +820,13 @@ func verifyEmail(c *gin.Context) {
 	}
 
 	// Send welcome email
-	if err := emailService.SendWelcomeEmail(email, name); err != nil {
-		log.Printf("Failed to send welcome email: %v", err)
-		// Don't fail verification if welcome email fails
+	if emailService != nil {
+		if err := emailService.SendWelcomeEmail(email, name); err != nil {
+			log.Printf("Failed to send welcome email: %v", err)
+			// Don't fail verification if welcome email fails
+		}
+	} else {
+		log.Printf("Warning: Email service not initialized. Welcome email not sent for %s", email)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -877,6 +890,10 @@ func resendVerification(c *gin.Context) {
 	}
 
 	// Send verification email
+	if emailService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "email service is not configured. Please contact support."})
+		return
+	}
 	if err := emailService.SendVerificationEmail(req.Email, name, verificationToken); err != nil {
 		log.Printf("Failed to send verification email: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send verification email"})

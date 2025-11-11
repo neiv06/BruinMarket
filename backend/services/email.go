@@ -13,15 +13,37 @@ type EmailService struct {
 	fromName    string
 	fromEmail   string
 	frontendURL string
+	apiKey      string
 }
 
-func NewEmailService() *EmailService {
-	return &EmailService{
-		client:      sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY")),
-		fromName:    os.Getenv("SENDGRID_FROM_NAME"),
-		fromEmail:   os.Getenv("SENDGRID_FROM_EMAIL"),
-		frontendURL: os.Getenv("FRONTEND_URL"),
+func NewEmailService() (*EmailService, error) {
+	apiKey := os.Getenv("SENDGRID_API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("SENDGRID_API_KEY environment variable is not set")
 	}
+
+	fromName := os.Getenv("SENDGRID_FROM_NAME")
+	if fromName == "" {
+		fromName = "BruinMarket"
+	}
+
+	fromEmail := os.Getenv("SENDGRID_FROM_EMAIL")
+	if fromEmail == "" {
+		return nil, fmt.Errorf("SENDGRID_FROM_EMAIL environment variable is not set")
+	}
+
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	return &EmailService{
+		client:      sendgrid.NewSendClient(apiKey),
+		fromName:    fromName,
+		fromEmail:   fromEmail,
+		frontendURL: frontendURL,
+		apiKey:      apiKey,
+	}, nil
 }
 
 func (e *EmailService) SendVerificationEmail(toEmail, toName, token string) error {

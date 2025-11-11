@@ -77,9 +77,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Check @ucla.edu email
-	if !strings.HasSuffix(input.Email, "@ucla.edu") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Must use a @ucla.edu email address"})
+	// Check @g.ucla.edu email
+	if !strings.HasSuffix(input.Email, "@g.ucla.edu") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Must use a @g.ucla.edu email address"})
 		return
 	}
 

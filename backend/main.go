@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"bruinmarket-backend/services"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -87,13 +91,16 @@ func (h *Hub) Run() {
 
 // Models
 type User struct {
-	ID                string    `json:"id"`
-	Email             string    `json:"email"`
-	Name              string    `json:"name"`
-	Year              string    `json:"year"`
-	ProfilePictureURL string    `json:"profile_picture_url"`
-	Password          string    `json:"-"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID                       string     `json:"id"`
+	Email                    string     `json:"email"`
+	Name                     string     `json:"name"`
+	Year                     string     `json:"year"`
+	ProfilePictureURL        string     `json:"profile_picture_url"`
+	Password                 string     `json:"-"`
+	EmailVerified            bool       `json:"email_verified"`
+	VerificationToken        *string    `json:"-"`
+	VerificationTokenExpires *time.Time `json:"-"`
+	CreatedAt                time.Time  `json:"created_at"`
 }
 
 type Post struct {
@@ -180,6 +187,7 @@ type WSMessage struct {
 
 // Database
 var db *sql.DB
+var emailService *services.EmailService
 
 func initDB() error {
 	var err error
@@ -283,6 +291,32 @@ func initDB() error {
 	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture_url VARCHAR(500)`); err != nil {
 		return err
 	}
+
+	// Add year column if it doesn't exist
+	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS year VARCHAR(50)`); err != nil {
+		return err
+	}
+
+	// Add email verification columns
+	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE`); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255)`); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_expires TIMESTAMP`); err != nil {
+		return err
+	}
+
+	// Create index for verification token
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_verification_token ON users(verification_token)`); err != nil {
+		return err
+	}
+
+	// Initialize email service
+	emailService = services.NewEmailService()
 
 	return nil
 }
@@ -599,6 +633,15 @@ func getMessages(c *gin.Context) {
 }
 
 // Auth Handlers (keeping existing code)
+// Helper function to generate verification token
+func generateVerificationToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
 func register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -628,54 +671,36 @@ func register(c *gin.Context) {
 		return
 	}
 
-	// Ensure the year column exists
-	_, err = db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS year VARCHAR(50)`)
+	// Generate verification token
+	verificationToken, err := generateVerificationToken()
 	if err != nil {
-		log.Printf("Warning: Could not ensure year column exists: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate verification token"})
+		return
 	}
 
+	tokenExpires := time.Now().Add(24 * time.Hour)
 	userID := uuid.New().String()
-	// Ensure the year column exists
-	_, err = db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS year VARCHAR(50)`)
-	if err != nil {
-		log.Printf("Warning: Could not ensure year column exists: %v", err)
-	}
 
+	// Insert user with verification token
 	_, err = db.Exec(
-		"INSERT INTO users (id, email, name, year, password, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		userID, req.Email, req.Name, req.Year, string(hashedPassword), time.Now(),
+		`INSERT INTO users (id, email, name, year, password, email_verified, verification_token, verification_token_expires, created_at) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		userID, req.Email, req.Name, req.Year, string(hashedPassword), false, verificationToken, tokenExpires, time.Now(),
 	)
 	if err != nil {
+		log.Printf("Failed to create user: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
-		UserID: userID,
-		Email:  req.Email,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	})
-
-	tokenString, err := token.SignedString(jwtSecret)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
-		return
+	// Send verification email
+	if err := emailService.SendVerificationEmail(req.Email, req.Name, verificationToken); err != nil {
+		log.Printf("Failed to send verification email: %v", err)
+		// Don't fail registration if email fails, user can resend
 	}
 
-	user := User{
-		ID:        userID,
-		Email:     req.Email,
-		Name:      req.Name,
-		Year:      req.Year,
-		CreatedAt: time.Now(),
-	}
-
-	c.JSON(http.StatusCreated, AuthResponse{
-		Token: tokenString,
-		User:  user,
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Registration successful! Please check your email to verify your account.",
 	})
 }
 
@@ -688,16 +713,19 @@ func login(c *gin.Context) {
 
 	var user User
 	var hashedPassword string
+	var emailVerified bool
 	err := db.QueryRow(
-		"SELECT id, email, name, COALESCE(year, ''), COALESCE(profile_picture_url, ''), password, created_at FROM users WHERE email = $1",
+		`SELECT id, email, name, COALESCE(year, ''), COALESCE(profile_picture_url, ''), password, COALESCE(email_verified, false), created_at 
+		 FROM users WHERE email = $1`,
 		req.Email,
-	).Scan(&user.ID, &user.Email, &user.Name, &user.Year, &user.ProfilePictureURL, &hashedPassword, &user.CreatedAt)
+	).Scan(&user.ID, &user.Email, &user.Name, &user.Year, &user.ProfilePictureURL, &hashedPassword, &emailVerified, &user.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
 		return
 	}
 	if err != nil {
+		log.Printf("Database error during login: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
@@ -707,6 +735,14 @@ func login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
 		return
 	}
+
+	// Check if email is verified
+	if !emailVerified {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Please verify your email address before logging in. Check your inbox for the verification email."})
+		return
+	}
+
+	user.EmailVerified = emailVerified
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		UserID: user.ID,
@@ -727,6 +763,127 @@ func login(c *gin.Context) {
 		Token: tokenString,
 		User:  user,
 	})
+}
+
+func verifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "verification token is required"})
+		return
+	}
+
+	var userID, email, name string
+	var tokenExpires time.Time
+	err := db.QueryRow(
+		`SELECT id, email, name, verification_token_expires 
+		 FROM users 
+		 WHERE verification_token = $1 AND email_verified = false`,
+		token,
+	).Scan(&userID, &email, &name, &tokenExpires)
+
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired verification token"})
+		return
+	}
+	if err != nil {
+		log.Printf("Database error during email verification: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	// Check if token is expired
+	if time.Now().After(tokenExpires) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Verification token has expired. Please request a new one."})
+		return
+	}
+
+	// Update user as verified and clear token
+	_, err = db.Exec(
+		`UPDATE users 
+		 SET email_verified = true, verification_token = NULL, verification_token_expires = NULL 
+		 WHERE id = $1`,
+		userID,
+	)
+	if err != nil {
+		log.Printf("Failed to update user verification status: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify email"})
+		return
+	}
+
+	// Send welcome email
+	if err := emailService.SendWelcomeEmail(email, name); err != nil {
+		log.Printf("Failed to send welcome email: %v", err)
+		// Don't fail verification if welcome email fails
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Email verified successfully! You can now log in.",
+	})
+}
+
+func resendVerification(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var userID, name string
+	var emailVerified bool
+	err := db.QueryRow(
+		`SELECT id, name, COALESCE(email_verified, false) FROM users WHERE email = $1`,
+		req.Email,
+	).Scan(&userID, &name, &emailVerified)
+
+	// Don't reveal if email exists or not for security
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusOK, gin.H{"message": "If that email is registered, a verification email has been sent."})
+		return
+	}
+	if err != nil {
+		log.Printf("Database error during resend verification: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	// If already verified, don't resend
+	if emailVerified {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is already verified. You can log in."})
+		return
+	}
+
+	// Generate new verification token
+	verificationToken, err := generateVerificationToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate verification token"})
+		return
+	}
+
+	tokenExpires := time.Now().Add(24 * time.Hour)
+
+	// Update user with new token
+	_, err = db.Exec(
+		`UPDATE users 
+		 SET verification_token = $1, verification_token_expires = $2 
+		 WHERE id = $3`,
+		verificationToken, tokenExpires, userID,
+	)
+	if err != nil {
+		log.Printf("Failed to update verification token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update verification token"})
+		return
+	}
+
+	// Send verification email
+	if err := emailService.SendVerificationEmail(req.Email, name, verificationToken); err != nil {
+		log.Printf("Failed to send verification email: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send verification email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Verification email sent! Please check your inbox."})
 }
 
 func getMe(c *gin.Context) {
@@ -1367,6 +1524,8 @@ func main() {
 		// Public routes
 		api.POST("/auth/register", register)
 		api.POST("/auth/login", login)
+		api.GET("/auth/verify-email", verifyEmail)
+		api.POST("/auth/resend-verification", resendVerification)
 		api.GET("/posts", getPosts)
 		api.GET("/posts/:id", getPost)
 

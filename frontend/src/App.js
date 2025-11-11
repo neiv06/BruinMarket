@@ -1270,18 +1270,49 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
     year: ''
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [showResendButton, setShowResendButton] = useState(false);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     setIsLogin(!initialIsSignUp);
     // Reset and trigger fade-in and pull-up animation
     setIsVisible(false);
+    setSuccess('');
+    setShowResendButton(false);
     setTimeout(() => setIsVisible(true), 10);
   }, [initialIsSignUp]);
 
+  const handleResendVerification = async () => {
+    setResending(true);
+    setError('');
+    try {
+      const response = await fetch(`${API_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: formData.email })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSuccess('Verification email sent! Check your inbox.');
+      } else {
+        setError(data.error);
+      }
+    } catch (error) {
+      setError('Failed to resend verification email');
+    }
+    setResending(false);
+  };
+
   const handleSubmit = async () => {
     setError('');
+    setSuccess('');
     setLoading(true);
 
     if (!isLogin && !formData.year) {
@@ -1320,7 +1351,16 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
         return;
       }
 
-      onSuccess(data.token, data.user);
+      if (isLogin) {
+        // Login successful
+        onSuccess(data.token, data.user);
+      } else {
+        // Registration successful - show verification message
+        setSuccess(data.message);
+        setShowResendButton(true);
+        setFormData({ ...formData, password: '' }); // Clear password for security
+      }
+      setLoading(false);
     } catch (error) {
       setError('Failed to connect to server');
       setLoading(false);
@@ -1347,72 +1387,99 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
           </div>
         )}
 
-        <div className="space-y-4">
-          {!isLogin && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
-                <select
-                  value={formData.year}
-                  onChange={(e) => setFormData({...formData, year: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select Year</option>
-                  <option value="Freshman">Freshman</option>
-                  <option value="Sophomore">Sophomore</option>
-                  <option value="Junior">Junior</option>
-                  <option value="Senior">Senior</option>
-                  <option value="Graduate">Graduate</option>
-                </select>
-              </div>
-            </>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">UCLA Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-              placeholder="yourname@ucla.edu"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+        {success && (
+          <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-lg text-sm">
+            <CheckCircle className="inline w-5 h-5 mr-2" />
+            {success}
           </div>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+        {!success && (
+          <div className="space-y-4">
+            {!isLogin && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                  <select
+                    value={formData.year}
+                    onChange={(e) => setFormData({...formData, year: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Year</option>
+                    <option value="Freshman">Freshman</option>
+                    <option value="Sophomore">Sophomore</option>
+                    <option value="Junior">Junior</option>
+                    <option value="Senior">Senior</option>
+                    <option value="Graduate">Graduate</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">UCLA Email</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                placeholder="yourname@ucla.edu"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+            >
+              {loading ? 'Loading...' : (isLogin ? 'Login' : 'Sign Up')}
+            </button>
+
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+                setSuccess('');
+                setShowResendButton(false);
+              }}
+              className="w-full text-blue-600 hover:text-blue-700 text-sm"
+            >
+              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
+            </button>
           </div>
+        )}
 
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-          >
-            {loading ? 'Loading...' : (isLogin ? 'Login' : 'Sign Up')}
-          </button>
-
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="w-full text-blue-600 hover:text-blue-700 text-sm"
-          >
-            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
-          </button>
-        </div>
+        {showResendButton && (
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600 mb-2">Didn't receive the email?</p>
+            <button
+              onClick={handleResendVerification}
+              disabled={resending}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:text-gray-400"
+            >
+              {resending ? 'Sending...' : 'Resend verification email'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

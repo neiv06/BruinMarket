@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Dumbbell, Laptop, Ticket, Sofa, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit, CheckCircle, Github, Menu } from 'lucide-react';
+import { Search, Plus, X, Upload, DollarSign, CircleParking, Tag, Package, Car, Dumbbell, Laptop, Ticket, Sofa, Lamp, Grid3x3, User, LogOut, Shirt, NotebookPen, CircleQuestionMark, Footprints, MessageCircle, MoreVertical, Trash2, Edit, CheckCircle, Github, Menu } from 'lucide-react';
 import logo from './BruinMarketTransparent.svg';
 import Chat from './Chat.js';
 
@@ -13,6 +13,7 @@ const categories = [
   { name: 'Class Supplies', value: 'Class Supplies', icon: NotebookPen },
   { name: 'Electronics', value: 'Electronics', icon: Laptop },
   { name: 'Tickets', value: 'Tickets', icon: Ticket },
+  { name: 'Rideshare', value: 'Rideshare', icon: Car },
   { name: 'Parking Spots', value: 'Parking Spots', icon: CircleParking },
   { name: 'Furniture', value: 'Furniture', icon: Sofa },
   { name: 'Decorations', value: 'Decorations', icon: Lamp },

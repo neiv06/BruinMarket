@@ -1966,7 +1966,7 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({...formData, title: e.target.value})}
-              placeholder="e.g., iPhone 13 Pro Max"
+              placeholder="e.g., Football Tickets"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

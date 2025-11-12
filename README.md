@@ -299,13 +299,13 @@ BruinMarket/
 
 ## 📝 Notes
 
-- The project is currently in **Beta** status
 - Email verification is required for all users
 - Only @ucla.edu email addresses are accepted for registration
 - Default JWT secret should be changed in production
 - File uploads are stored locally (consider cloud storage for production)
 - SendGrid account is required for email functionality
 - All emails include data privacy and copyright information
+- LLMs used to assist development: Claude Sonnet 4.5, ChatGPT 5, Cursor
 
 ## 🔒 Security Considerations
 

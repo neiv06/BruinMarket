@@ -78,7 +78,7 @@ func (e *EmailService) SendVerificationEmail(toEmail, toName, token string) erro
 					<p>Thanks for signing up for BruinMarket, UCLA's student marketplace!</p>
 					<p>To get started, please verify your email address by clicking the button below:</p>
 					<div style="text-align: center;">
-						<a href="%s" class="button">Verify Email Address</a>
+						<a href="%s" class="button" style="display: inline-block; background: #3b82f6; color: white !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold;">Verify Email Address</a>
 					</div>
 					<p>Or copy and paste this link into your browser:</p>
 					<p style="word-break: break-all; color: #3b82f6;">%s</p>
@@ -89,6 +89,7 @@ func (e *EmailService) SendVerificationEmail(toEmail, toName, token string) erro
 				<div class="footer">
 					<p>BruinMarket - UCLA Student Marketplace</p>
 					<p>This is an automated email. Please do not reply.</p>
+					<p style="margin-top: 10px; color: #999; font-size: 11px;">© 2025 BruinMarket. All rights reserved.</p>
 				</div>
 			</div>
 		</body>
@@ -160,10 +161,14 @@ func (e *EmailService) SendWelcomeEmail(toEmail, toName string) error {
 						<li>🔍 Search for exactly what you need</li>
 					</ul>
 					<div style="text-align: center;">
-						<a href="%s" class="button">Start Browsing</a>
+						<a href="%s" class="button" style="display: inline-block; background: #3b82f6; color: white !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold;">Start Browsing</a>
 					</div>
 					<p>Happy trading!</p>
 					<p>Best regards,<br>The BruinMarket Team</p>
+				</div>
+				<div class="footer" style="text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+					<p>BruinMarket - UCLA Student Marketplace</p>
+					<p style="margin-top: 10px; color: #999; font-size: 11px;">© 2025 BruinMarket. All rights reserved.</p>
 				</div>
 			</div>
 		</body>

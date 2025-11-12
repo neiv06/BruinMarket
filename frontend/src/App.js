@@ -450,7 +450,7 @@ const BruinMarket = () => {
             <img src={logo} alt="BruinMarket Logo" className="h-12 w-12 md:h-20 md:w-20 flex-shrink-0" />
             <div className="min-w-0">
               <h1 className="text-lg sm:text-2xl md:text-3xl font-bold truncate">BruinMarket</h1>
-              <p className="text-blue-100 text-xs md:text-sm mt-0 md:mt-1 hidden sm:block">UCLA Student Marketplace</p>
+              <p className="text-blue-100 text-xs md:text-sm mt-0 md:mt-1 hidden sm:block">The UCLA Student Marketplace</p>
             </div>
           </div>
           <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">

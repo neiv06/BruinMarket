@@ -777,6 +777,10 @@ const BruinMarket = () => {
           onClose={() => {
             setShowChat(false);
             setInitialConversation(null);
+            // Reload page to fix UI glitch with header
+            setTimeout(() => {
+              window.location.reload();
+            }, 350); // Wait slightly longer than chat close animation
           }}
         />
       )}

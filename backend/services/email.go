@@ -154,7 +154,7 @@ func (e *EmailService) SendWelcomeEmail(toEmail, toName string) error {
 					<p>Your email has been verified! You're all set to start buying and selling on BruinMarket.</p>
 					<h3>What's next?</h3>
 					<ul>
-						<li>📦 Browse items in 11 different categories</li>
+						<li>🐻 Browse items from your fellow Bruins</li>
 						<li>💬 Message sellers directly</li>
 						<li>📸 Post items you want to sell</li>
 						<li>🔍 Search for exactly what you need</li>

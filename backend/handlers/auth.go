@@ -141,7 +141,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}()
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Registration successful! Please check your email to verify your account.",
+		"message": "Registration successful! Please check your email INBOX and SPAM folder to verify your account.",
 		"email":   input.Email,
 	})
 }

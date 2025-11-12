@@ -827,6 +827,37 @@ func verifyEmail(c *gin.Context) {
 		return
 	}
 
+	// Fetch full user data for response
+	var user User
+	err = db.QueryRow(
+		`SELECT id, email, name, COALESCE(year, ''), COALESCE(profile_picture_url, ''), COALESCE(email_verified, false), created_at 
+		 FROM users WHERE id = $1`,
+		userID,
+	).Scan(&user.ID, &user.Email, &user.Name, &user.Year, &user.ProfilePictureURL, &user.EmailVerified, &user.CreatedAt)
+
+	if err != nil {
+		log.Printf("Failed to fetch user data after verification: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user data"})
+		return
+	}
+
+	// Generate JWT token
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		UserID: user.ID,
+		Email:  user.Email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	})
+
+	tokenString, err := jwtToken.SignedString(jwtSecret)
+	if err != nil {
+		log.Printf("Failed to generate JWT token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+
 	// Send welcome email asynchronously
 	if emailService != nil {
 		go func() {
@@ -841,8 +872,9 @@ func verifyEmail(c *gin.Context) {
 		log.Printf("Warning: Email service not initialized. Welcome email not sent for %s", email)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Email verified successfully! You can now log in.",
+	c.JSON(http.StatusOK, AuthResponse{
+		Token: tokenString,
+		User:  user,
 	})
 }
 

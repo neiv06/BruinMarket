@@ -34,10 +34,10 @@ const VerifyEmail = () => {
         setStatus('success');
         setMessage(data.message || 'Email verified successfully!');
         
-        // Redirect to home page after 3 seconds
-        setTimeout(() => {
-          navigate('/');
-        }, 3000);
+        // Store token for automatic login when user clicks the button
+        if (data.token && data.user) {
+          localStorage.setItem('token', data.token);
+        }
       } else {
         setStatus('error');
         setMessage(data.error || 'Verification failed. Please try again.');
@@ -46,6 +46,11 @@ const VerifyEmail = () => {
       setStatus('error');
       setMessage('Failed to connect to server. Please try again later.');
     }
+  };
+
+  const goToMarketplace = () => {
+    // Navigate to home page which will show marketplace if user is logged in
+    window.location.href = '/';
   };
 
   return (
@@ -64,7 +69,13 @@ const VerifyEmail = () => {
             <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h2>
             <p className="text-gray-600 mb-4">{message}</p>
-            <p className="text-sm text-gray-500">Redirecting you to the home page...</p>
+            <button
+              onClick={goToMarketplace}
+              className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition font-semibold text-lg shadow-lg hover:shadow-xl"
+            >
+              Go to Marketplace
+            </button>
+            <p className="text-sm text-gray-500 mt-4">You are now logged in!</p>
           </>
         )}
 

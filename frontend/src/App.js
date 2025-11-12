@@ -813,7 +813,7 @@ const BruinMarket = () => {
 
 const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, showAuthModal, setShowAuthModal }) => {
   const [displayedText, setDisplayedText] = useState('');
-  const fullText = 'UCLA Student Marketplace';
+  const fullText = 'The UCLA Student Marketplace';
   const [isTyping, setIsTyping] = useState(true);
   const [showLogo, setShowLogo] = useState(false);
   const [showTitle, setShowTitle] = useState(false);

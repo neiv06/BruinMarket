@@ -318,9 +318,12 @@ func initDB() error {
 	// Initialize email service
 	emailService, err = services.NewEmailService()
 	if err != nil {
-		log.Printf("Warning: Failed to initialize email service: %v", err)
+		log.Printf("ERROR: Failed to initialize email service: %v", err)
 		log.Printf("Email functionality will be disabled. Set SENDGRID_API_KEY and SENDGRID_FROM_EMAIL environment variables to enable.")
+		emailService = nil // Ensure it's nil if initialization failed
 		// Continue without email service - registration will still work but emails won't be sent
+	} else {
+		log.Printf("Email service initialized successfully")
 	}
 
 	return nil
@@ -698,14 +701,19 @@ func register(c *gin.Context) {
 		return
 	}
 
-	// Send verification email
+	// Send verification email asynchronously
 	if emailService != nil {
-		if err := emailService.SendVerificationEmail(req.Email, req.Name, verificationToken); err != nil {
-			log.Printf("Failed to send verification email: %v", err)
-			// Don't fail registration if email fails, user can resend
-		}
+		go func() {
+			err := emailService.SendVerificationEmail(req.Email, req.Name, verificationToken)
+			if err != nil {
+				log.Printf("Failed to send verification email to %s: %v", req.Email, err)
+			} else {
+				log.Printf("Verification email sent successfully to %s", req.Email)
+			}
+		}()
 	} else {
-		log.Printf("Warning: Email service not initialized. Verification email not sent for %s", req.Email)
+		log.Printf("ERROR: Email service not initialized. Verification email not sent for %s", req.Email)
+		log.Printf("Please check that SENDGRID_API_KEY and SENDGRID_FROM_EMAIL environment variables are set")
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -819,12 +827,16 @@ func verifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Send welcome email
+	// Send welcome email asynchronously
 	if emailService != nil {
-		if err := emailService.SendWelcomeEmail(email, name); err != nil {
-			log.Printf("Failed to send welcome email: %v", err)
-			// Don't fail verification if welcome email fails
-		}
+		go func() {
+			err := emailService.SendWelcomeEmail(email, name)
+			if err != nil {
+				log.Printf("Failed to send welcome email to %s: %v", email, err)
+			} else {
+				log.Printf("Welcome email sent successfully to %s", email)
+			}
+		}()
 	} else {
 		log.Printf("Warning: Email service not initialized. Welcome email not sent for %s", email)
 	}
@@ -889,16 +901,20 @@ func resendVerification(c *gin.Context) {
 		return
 	}
 
-	// Send verification email
+	// Send verification email asynchronously
 	if emailService == nil {
+		log.Printf("ERROR: Email service not initialized. Cannot resend verification email to %s", req.Email)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "email service is not configured. Please contact support."})
 		return
 	}
-	if err := emailService.SendVerificationEmail(req.Email, name, verificationToken); err != nil {
-		log.Printf("Failed to send verification email: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send verification email"})
-		return
-	}
+	go func() {
+		err := emailService.SendVerificationEmail(req.Email, name, verificationToken)
+		if err != nil {
+			log.Printf("Failed to send verification email to %s: %v", req.Email, err)
+		} else {
+			log.Printf("Verification email resent successfully to %s", req.Email)
+		}
+	}()
 
 	c.JSON(http.StatusOK, gin.H{"message": "Verification email sent! Please check your inbox."})
 }

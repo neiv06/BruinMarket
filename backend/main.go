@@ -657,8 +657,8 @@ func register(c *gin.Context) {
 		return
 	}
 
-	if !strings.HasSuffix(strings.ToLower(req.Email), "@g.ucla.edu") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "must use a @g.ucla.edu email address"})
+	if !strings.HasSuffix(strings.ToLower(req.Email), "@ucla.edu") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "must use a @ucla.edu email address"})
 		return
 	}
 

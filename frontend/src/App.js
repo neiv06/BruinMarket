@@ -1322,8 +1322,8 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
       return;
     }
 
-    if (!formData.email.endsWith('@g.ucla.edu')) {
-      setError('Please use a @g.ucla.edu email address');
+    if (!formData.email.endsWith('@ucla.edu')) {
+      setError('Please use a @ucla.edu email address');
       setLoading(false);
       return;
     }
@@ -1432,7 +1432,7 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
-                placeholder="yourname@g.ucla.edu"
+                placeholder="yourname@ucla.edu"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>

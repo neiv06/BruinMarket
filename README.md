@@ -257,9 +257,6 @@ BruinMarket/
 - **Selling**: Users can sell items with condition tags
 - **Buying**: Users can post items they're looking to buy
 
-### Categories
-- All, Clothing, Sports Equipment, Shoes, Class Supplies, Electronics, Tickets, Parking Spots, Furniture, Decorations, Other
-
 ### Media Handling
 - Supports multiple images and videos per post
 - Maximum file size: 10MB
@@ -316,10 +313,6 @@ BruinMarket/
 - Regularly update dependencies
 - Use environment variables for all sensitive configuration
 - Implement proper CORS policies for production
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 

@@ -70,6 +70,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required,min=6"`
 		Name     string `json:"name" binding:"required"`
+		Year     string `json:"year" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -77,8 +78,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Check @g.ucla.edu email
-	if !strings.HasSuffix(input.Email, "@g.ucla.edu") {
+	// Check @g.ucla.edu email (Gmail-based UCLA email)
+	if !strings.HasSuffix(strings.ToLower(input.Email), "@g.ucla.edu") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Must use a @g.ucla.edu email address"})
 		return
 	}
@@ -87,6 +88,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var exists bool
 	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", input.Email).Scan(&exists)
 	if err != nil {
+		log.Printf("Database error checking email existence: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
@@ -98,6 +100,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
+		log.Printf("Failed to hash password: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
 	}
@@ -105,6 +108,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// Generate verification token
 	token, err := generateToken()
 	if err != nil {
+		log.Printf("Failed to generate token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
@@ -112,15 +116,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// Token expires in 24 hours
 	expiresAt := time.Now().Add(24 * time.Hour)
 
-	// Create user
+	// Create user with year field
 	var userID int
 	err = h.db.QueryRow(`
-		INSERT INTO users (email, password, name, email_verified, verification_token, verification_token_expires)
-		VALUES ($1, $2, $3, FALSE, $4, $5)
+		INSERT INTO users (email, password, name, year, email_verified, verification_token, verification_token_expires)
+		VALUES ($1, $2, $3, $4, FALSE, $5, $6)
 		RETURNING id
-	`, input.Email, string(hashedPassword), input.Name, token, expiresAt).Scan(&userID)
+	`, input.Email, string(hashedPassword), input.Name, input.Year, token, expiresAt).Scan(&userID)
 
 	if err != nil {
+		log.Printf("Failed to create user: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
@@ -130,6 +135,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		err := h.emailService.SendVerificationEmail(input.Email, input.Name, token)
 		if err != nil {
 			log.Printf("Failed to send verification email: %v", err)
+		} else {
+			log.Printf("Verification email sent successfully to %s", input.Email)
 		}
 	}()
 
@@ -159,6 +166,7 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 		return
 	}
 	if err != nil {
+		log.Printf("Database error during verification: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
@@ -177,15 +185,20 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	`, user.ID)
 
 	if err != nil {
+		log.Printf("Failed to update user verification status: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify email"})
 		return
 	}
+
+	log.Printf("Email verified successfully for user: %s", user.Email)
 
 	// Send welcome email
 	go func() {
 		err := h.emailService.SendWelcomeEmail(user.Email, user.Name)
 		if err != nil {
 			log.Printf("Failed to send welcome email: %v", err)
+		} else {
+			log.Printf("Welcome email sent successfully to %s", user.Email)
 		}
 	}()
 
@@ -219,6 +232,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	if err != nil {
+		log.Printf("Database error during login: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
@@ -241,9 +255,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Generate JWT token
 	token, err := h.generateJWT(user.ID, user.Email)
 	if err != nil {
+		log.Printf("Failed to generate JWT: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
+
+	log.Printf("User logged in successfully: %s", user.Email)
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": token,
@@ -275,6 +292,7 @@ func (h *AuthHandler) ResendVerification(c *gin.Context) {
 		return
 	}
 	if err != nil {
+		log.Printf("Database error during resend: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
@@ -287,6 +305,7 @@ func (h *AuthHandler) ResendVerification(c *gin.Context) {
 	// Generate new token
 	token, err := generateToken()
 	if err != nil {
+		log.Printf("Failed to generate token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
@@ -301,6 +320,7 @@ func (h *AuthHandler) ResendVerification(c *gin.Context) {
 	`, token, expiresAt, user.ID)
 
 	if err != nil {
+		log.Printf("Failed to update token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update token"})
 		return
 	}
@@ -310,6 +330,8 @@ func (h *AuthHandler) ResendVerification(c *gin.Context) {
 		err := h.emailService.SendVerificationEmail(user.Email, user.Name, token)
 		if err != nil {
 			log.Printf("Failed to send verification email: %v", err)
+		} else {
+			log.Printf("Resent verification email to %s", user.Email)
 		}
 	}()
 

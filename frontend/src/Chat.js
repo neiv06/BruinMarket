@@ -247,34 +247,34 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4 transition-opacity duration-300"
+      className="fixed inset-0 bg-black bg-opacity-50 flex md:items-center md:justify-center items-start justify-center z-50 p-2 md:p-4 pt-20 md:pt-4 transition-opacity duration-300"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           handleClose();
         }
       }}
     >
-      <div className={`bg-white rounded-lg w-full max-w-5xl h-[95vh] md:h-[600px] flex flex-col md:flex-row overflow-hidden shadow-2xl transition-all duration-500 ease-out ${
+      <div className={`bg-white rounded-lg w-full max-w-5xl h-[calc(100vh-5rem)] md:h-[600px] flex flex-col md:flex-row overflow-hidden shadow-2xl transition-all duration-500 ease-out ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`} onClick={(e) => e.stopPropagation()}>
         {/* Conversations List */}
         <div className="w-full md:w-1/3 border-r border-gray-200 flex flex-col max-h-[40vh] md:max-h-none">
-          <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageCircle size={24} />
-              <h2 className="text-xl font-bold">Messages</h2>
+          <div className="bg-blue-600 text-white p-3 md:p-4 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <MessageCircle size={20} className="md:w-6 md:h-6" />
+              <h2 className="text-lg md:text-xl font-bold">Messages</h2>
             </div>
             <button onClick={handleClose} className="text-white hover:text-gray-200">
-              <X size={24} />
+              <X size={20} className="md:w-6 md:h-6" />
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {conversations.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>No conversations yet</p>
-                <p className="text-sm mt-2">Click "Message" on a post to start chatting</p>
+              <div className="p-4 md:p-8 text-center text-gray-500">
+                <MessageCircle size={36} className="mx-auto mb-3 md:mb-4 text-gray-300 md:w-12 md:h-12" />
+                <p className="text-sm md:text-base">No conversations yet</p>
+                <p className="text-xs md:text-sm mt-1 md:mt-2">Click "Message" on a post to start chatting</p>
               </div>
             ) : (
               conversations.map(conv => {
@@ -283,25 +283,25 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                   <div
                     key={conv.id}
                     onClick={() => setSelectedConversation(conv)}
-                    className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
+                    className={`p-3 md:p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
                       selectedConversation?.id === conv.id ? 'bg-blue-50' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 md:gap-3">
                       {otherUser.picture ? (
                         <img
                           src={`${API_URL.replace('/api', '')}${otherUser.picture}`}
                           alt={otherUser.name}
-                          className="w-12 h-12 rounded-full object-cover"
+                          className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center">
-                          <User size={24} className="text-blue-600" />
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-200 flex items-center justify-center">
+                          <User size={20} className="text-blue-600 md:w-6 md:h-6" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">{otherUser.name}</p>
-                        <p className="text-sm text-gray-500 truncate">{conv.last_message || 'No messages yet'}</p>
+                        <p className="font-semibold text-sm md:text-base text-gray-900 truncate">{otherUser.name}</p>
+                        <p className="text-xs md:text-sm text-gray-500 truncate">{conv.last_message || 'No messages yet'}</p>
                       </div>
                     </div>
                   </div>
@@ -316,8 +316,8 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="bg-gray-100 p-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
+              <div className="bg-gray-100 p-3 md:p-4 border-b border-gray-200">
+                <div className="flex items-center gap-2 md:gap-3">
                   {(() => {
                     const otherUser = getOtherUser(selectedConversation);
                     return (
@@ -326,15 +326,15 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                           <img
                             src={`${API_URL.replace('/api', '')}${otherUser.picture}`}
                             alt={otherUser.name}
-                            className="w-10 h-10 rounded-full object-cover"
+                            className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center">
-                            <User size={20} className="text-blue-600" />
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-200 flex items-center justify-center">
+                            <User size={18} className="text-blue-600 md:w-5 md:h-5" />
                           </div>
                         )}
                         <div>
-                          <p className="font-semibold text-gray-900">{otherUser.name}</p>
+                          <p className="font-semibold text-sm md:text-base text-gray-900">{otherUser.name}</p>
                         </div>
                       </>
                     );
@@ -343,7 +343,7 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+              <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 bg-gray-50">
                 {messages.map((message) => {
                   const isMe = message.sender_id === user.id;
                   return (
@@ -352,15 +352,15 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                       className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        className={`max-w-[75%] md:max-w-xs lg:max-w-md px-3 md:px-4 py-1.5 md:py-2 rounded-lg ${
                           isMe
                             ? 'bg-blue-600 text-white'
                             : 'bg-white text-gray-900 border border-gray-200'
                         }`}
                       >
-                        <p className="break-words">{message.content}</p>
+                        <p className="break-words text-sm md:text-base">{message.content}</p>
                         <p
-                          className={`text-xs mt-1 ${
+                          className={`text-xs mt-0.5 md:mt-1 ${
                             isMe ? 'text-blue-100' : 'text-gray-500'
                           }`}
                         >
@@ -377,8 +377,8 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
               </div>
 
               {/* Message Input */}
-              <div className="p-4 bg-white border-t border-gray-200">
-                <div className="flex gap-2">
+              <div className="p-3 md:p-4 bg-white border-t border-gray-200">
+                <div className="flex gap-1.5 md:gap-2">
                   <input
                     type="text"
                     value={newMessage}
@@ -390,23 +390,23 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                       }
                     }}
                     placeholder="Type a message..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
                     onClick={sendMessage}
                     disabled={!newMessage.trim()}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="bg-blue-600 text-white px-4 md:px-6 py-1.5 md:py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1 md:gap-2"
                   >
-                    <Send size={20} />
+                    <Send size={18} className="md:w-5 md:h-5" />
                   </button>
                 </div>
               </div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500">
-              <div className="text-center">
-                <MessageCircle size={64} className="mx-auto mb-4 text-gray-300" />
-                <p>Select a conversation to start messaging</p>
+              <div className="text-center p-4">
+                <MessageCircle size={48} className="mx-auto mb-3 md:mb-4 text-gray-300 md:w-16 md:h-16" />
+                <p className="text-sm md:text-base">Select a conversation to start messaging</p>
               </div>
             </div>
           )}

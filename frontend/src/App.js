@@ -797,13 +797,13 @@ const BruinMarket = () => {
         />
       )}
 
-      {/* Mobile FAB for Create Post - Fixed at bottom center, hidden when sidebar or chat is open */}
+      {/* Mobile FAB for Create Post - Fixed at top right below header, hidden when sidebar or chat is open */}
       {user && !showMobileSidebar && !showChat && !showCreateModal && (
         <button
           onClick={() => setShowCreateModal(true)}
-          className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 active:scale-95"
+          className="md:hidden fixed top-20 right-4 z-50 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 active:scale-95"
         >
-          <Plus size={28} />
+          <Plus size={24} />
         </button>
       )}
       </div>

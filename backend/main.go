@@ -717,7 +717,7 @@ func register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Registration successful! Please check your email to verify your account. If email is not in your Inbox, check Spam folder.",
+		"message": "Registration successful! Please check your email to verify your account. If email is not in your Inbox, PLEASE CHECK SPAM FOLDER.",
 	})
 }
 

@@ -1928,22 +1928,22 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Create New Post</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex md:items-center md:justify-center items-start justify-center z-50 p-2 md:p-4 pt-20 md:pt-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[calc(100vh-5rem)] md:max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">Create New Post</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-all duration-300 hover:scale-110 hover:rotate-90">
-            <X size={24} />
+            <X size={20} className="md:w-6 md:h-6" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Post Type *</label>
-            <div className="flex gap-4">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Post Type *</label>
+            <div className="flex gap-2 md:gap-4">
               <button
                 onClick={() => setFormData({...formData, type: 'selling', condition: formData.type === 'selling' ? formData.condition : ''})}
-                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-colors ${
+                className={`flex-1 py-2 md:py-3 px-3 md:px-4 rounded-lg text-sm md:text-base font-semibold transition-colors ${
                   formData.type === 'selling'
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1953,7 +1953,7 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
               </button>
               <button
                 onClick={() => setFormData({...formData, type: 'buying', condition: ''})}
-                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-colors ${
+                className={`flex-1 py-2 md:py-3 px-3 md:px-4 rounded-lg text-sm md:text-base font-semibold transition-colors ${
                   formData.type === 'buying'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1965,22 +1965,22 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Title *</label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({...formData, title: e.target.value})}
               placeholder="e.g., Football Tickets"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Category *</label>
             <select
               value={formData.category}
               onChange={(e) => setFormData({...formData, category: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {categories.map(cat => (
                 <option key={cat.value} value={cat.value}>{cat.name}</option>
@@ -1990,14 +1990,14 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
 
           {formData.type === 'selling' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Condition *</label>
-              <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Condition *</label>
+              <div className="grid grid-cols-2 gap-1.5 md:gap-2">
                 {['New', 'Used - like New', 'Used - Good', 'Used - Poor'].map((condition) => (
                   <button
                     key={condition}
                     type="button"
                     onClick={() => setFormData({...formData, condition})}
-                    className={`py-2 px-4 rounded-lg font-medium transition-colors ${
+                    className={`py-1.5 md:py-2 px-2 md:px-4 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                       formData.condition === condition
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -2011,49 +2011,49 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
               {formData.type === 'buying' ? 'Willing to Pay ($)' : 'Price ($)'} *
             </label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-3 text-gray-400" size={20} />
+              <DollarSign className="absolute left-2 md:left-3 top-2 md:top-3 text-gray-400" size={18} />
               <input
                 type="number"
                 step="0.01"
                 value={formData.price}
                 onChange={(e) => setFormData({...formData, price: e.target.value})}
                 placeholder="0.00"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-8 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Location</label>
             <input
               type="text"
               value={formData.location}
               onChange={(e) => setFormData({...formData, location: e.target.value})}
               placeholder="e.g., Hedrick Hall, Rieber Vista, 433 Midvale Ave, etc."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Description *</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
               placeholder={formData.type === 'buying' ? 'Describe what you want...' : 'Describe the item...'}
-              rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={3}
+              className="w-full px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
               Images & Videos (Max 10MB each)
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 md:p-6 text-center hover:border-blue-500 transition-colors">
               <input
                 type="file"
                 multiple
@@ -2066,33 +2066,33 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
               <label htmlFor="media-upload" className="cursor-pointer">
                 {uploading ? (
                   <>
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-2"></div>
-                    <p className="text-gray-600">Uploading...</p>
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-4 border-blue-600 border-t-transparent mb-2"></div>
+                    <p className="text-xs md:text-base text-gray-600">Uploading...</p>
                   </>
                 ) : (
                   <>
-                    <Upload className="mx-auto text-gray-400 mb-2" size={32} />
-                    <p className="text-gray-600">Click to upload images or videos</p>
-                    <p className="text-gray-400 text-sm mt-1">Max 10MB per file</p>
+                    <Upload className="mx-auto text-gray-400 mb-2" size={24} />
+                    <p className="text-xs md:text-base text-gray-600">Click to upload images or videos</p>
+                    <p className="text-gray-400 text-xs md:text-sm mt-1">Max 10MB per file</p>
                   </>
                 )}
               </label>
             </div>
 
             {formData.media.length > 0 && (
-              <div className="grid grid-cols-3 gap-4 mt-4">
+              <div className="grid grid-cols-3 gap-2 md:gap-4 mt-3 md:mt-4">
                 {formData.media.map((media, index) => (
                   <div key={index} className="relative group">
                     {media.type.startsWith('image/') ? (
-                      <img src={`${API_URL.replace('/api', '')}${media.url}`} alt="Upload" className="w-full h-24 object-cover rounded-lg" />
+                      <img src={`${API_URL.replace('/api', '')}${media.url}`} alt="Upload" className="w-full h-20 md:h-24 object-cover rounded-lg" />
                     ) : (
-                      <video src={`${API_URL.replace('/api', '')}${media.url}`} className="w-full h-24 object-cover rounded-lg" />
+                      <video src={`${API_URL.replace('/api', '')}${media.url}`} className="w-full h-20 md:h-24 object-cover rounded-lg" />
                     )}
                     <button
                       onClick={() => removeMedia(index)}
                       className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X size={16} />
+                      <X size={14} className="md:w-4 md:h-4" />
                     </button>
                   </div>
                 ))}
@@ -2100,17 +2100,17 @@ const CreatePostModal = ({ onClose, onCreate, categories, token }) => {
             )}
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-2 md:gap-4">
             <button
               onClick={onClose}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 md:px-6 py-2 md:py-3 border border-gray-300 text-sm md:text-base text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={uploading}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="flex-1 px-4 md:px-6 py-2 md:py-3 bg-blue-600 text-white text-sm md:text-base rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {uploading ? 'Uploading...' : 'Create Post'}
             </button>

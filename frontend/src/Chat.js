@@ -1,372 +1,352 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, MessageCircle, User } from 'lucide-react';
+import { X, Send, MessageCircle, ArrowLeft } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8080/api/ws';
+const ORIGIN = API_URL.replace('/api', '');
+const asset = (path) => `${ORIGIN}${path}`;
 
+const Initial = ({ name, size = 40, active }) => (
+  <div
+    style={{ width: size, height: size }}
+    className={`flex shrink-0 items-center justify-center rounded-full ${
+      active ? 'bg-sun text-abyss' : 'bg-raised text-dim'
+    }`}
+  >
+    <span className="num text-[12px] font-bold">
+      {(name || '?').trim().charAt(0).toUpperCase()}
+    </span>
+  </div>
+);
+
+const Face = ({ picture, name, size = 40, active }) =>
+  picture ? (
+    <img
+      src={asset(picture)}
+      alt={name}
+      style={{ width: size, height: size }}
+      className="shrink-0 rounded-full object-cover"
+    />
+  ) : (
+    <Initial name={name} size={size} active={active} />
+  );
 
 const Chat = ({ user, token, onClose, initialConversation }) => {
-    const [conversations, setConversations] = useState([]);
-    const [selectedConversation, setSelectedConversation] = useState(initialConversation);
-    const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [ws, setWs] = useState(null);
-    const [wsReady, setWsReady] = useState(false);
-    const messagesEndRef = useRef(null);
-    const selectedConversationRef = useRef(null);
-    const [isVisible, setIsVisible] = useState(false);
-    const isMountedRef = useRef(true);
-    const wsRef = useRef(null);
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversation, setSelectedConversation] = useState(initialConversation);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [ws, setWs] = useState(null);
+  const [wsReady, setWsReady] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const messagesEndRef = useRef(null);
+  const selectedConversationRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const wsRef = useRef(null);
 
-    useEffect(() => {
-        selectedConversationRef.current = selectedConversation;
-      }, [selectedConversation]);
-  
-    useEffect(() => {
-      isMountedRef.current = true;
-      loadConversations();
-      connectWebSocket();
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
 
-      if (initialConversation) {
-        setSelectedConversation(initialConversation);
+  useEffect(() => {
+    isMountedRef.current = true;
+    loadConversations();
+    connectWebSocket();
+
+    if (initialConversation) setSelectedConversation(initialConversation);
+
+    const t = setTimeout(() => {
+      if (isMountedRef.current) setIsVisible(true);
+    }, 10);
+
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      clearTimeout(t);
+      isMountedRef.current = false;
+      document.body.style.overflow = '';
+      if (wsRef.current) {
+        wsRef.current.onclose = null; // prevent reconnection
+        wsRef.current.close();
+        wsRef.current = null;
       }
-  
-      // Trigger fade-in and pull-up animation
-      setTimeout(() => {
-        if (isMountedRef.current) {
-          setIsVisible(true);
-        }
-      }, 10);
-  
-      return () => {
-        isMountedRef.current = false;
-        if (wsRef.current) {
-          wsRef.current.onclose = null; // Prevent reconnection
-          wsRef.current.close();
-          wsRef.current = null;
-        }
-        setWs(null);
-        setWsReady(false);
-      };
-    }, []);
-  
-    useEffect(() => {
-      if (selectedConversation) {
-        loadMessages(selectedConversation.id);
-      }
-    }, [selectedConversation]);
-  
-    useEffect(() => {
-      scrollToBottom();
-    }, [messages]);
-  
-    const connectWebSocket = () => {
-        if (!isMountedRef.current) return;
-        
-        console.log('Attempting WebSocket connection...');
-        console.log('Token:', token ? 'Token exists' : 'NO TOKEN');
-        
-        setTimeout(() => {
-          if (!isMountedRef.current) return;
-          
-          const websocket = new WebSocket(`${WS_URL}?token=${token}`);
-          wsRef.current = websocket;
-        
-          websocket.onopen = () => {
-            if (!isMountedRef.current) {
-              websocket.close();
-              return;
-            }
-            console.log(' WebSocket connected successfully!');
-            setWsReady(true);
-          };
-        
-          websocket.onmessage = (event) => {
-            if (!isMountedRef.current) return;
-            
-            console.log('📨 Message received:', event.data);
-            const data = JSON.parse(event.data);
-            
-            if (data.type === 'message') {
-              // Use ref to get current conversation
-              const currentConversation = selectedConversationRef.current;
-              
-              if (currentConversation && data.conversation_id === currentConversation.id) {
-                setMessages(prev => {
-                  // Check if message already exists to avoid duplicates
-                  const exists = prev.some(m => m.id === data.message_id);
-                  if (exists) return prev;
-                  
-                  return [...prev, {
-                    id: data.message_id,
-                    conversation_id: data.conversation_id,
-                    sender_id: data.sender_id,
-                    receiver_id: data.receiver_id,
-                    content: data.content,
-                    created_at: data.created_at,
-                    read: false
-                  }];
-                });
-              }
-              // Update conversations list
-              loadConversations();
-            }
-          };
-        
-          websocket.onerror = (error) => {
-            if (!isMountedRef.current) return;
-            console.error(' WebSocket error:', error);
-            setWsReady(false);
-          };
-        
-          websocket.onclose = (event) => {
-            if (!isMountedRef.current) return;
-            
-            console.log('🔌 WebSocket closed. Code:', event.code, 'Reason:', event.reason);
-            setWsReady(false);
-            
-            // Only reconnect if component is still mounted
-            if (isMountedRef.current) {
-              setTimeout(() => {
-                if (isMountedRef.current) {
-                  console.log(' Attempting to reconnect...');
-                  connectWebSocket();
-                }
-              }, 3000);
-            }
-          };
-        
-          setWs(websocket);
-        }, 100);
-      };
-  
-    const loadConversations = async () => {
-      if (!isMountedRef.current) return;
-      
-      try {
-        const response = await fetch(`${API_URL}/conversations`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (response.ok && isMountedRef.current) {
-          const data = await response.json();
-          setConversations(data || []);
-        }
-      } catch (error) {
-        if (isMountedRef.current) {
-          console.error('Error loading conversations:', error);
-        }
-      }
+      setWs(null);
+      setWsReady(false);
     };
-  
-    const loadMessages = async (conversationId) => {
+  }, []);
+
+  useEffect(() => {
+    if (selectedConversation) loadMessages(selectedConversation.id);
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const connectWebSocket = () => {
+    if (!isMountedRef.current) return;
+
+    setTimeout(() => {
       if (!isMountedRef.current) return;
-      
-      try {
-        const response = await fetch(`${API_URL}/messages/${conversationId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (response.ok && isMountedRef.current) {
-          const data = await response.json();
-          setMessages(data || []);
-        }
-      } catch (error) {
-        if (isMountedRef.current) {
-          console.error('Error loading messages:', error);
-        }
-      }
-    };
-  
-    const sendMessage = () => {
-        console.log('Send message called');
-        console.log('Message:', newMessage.trim());
-        console.log('WS exists:', !!ws);
-        console.log('WS Ready:', wsReady);
-        console.log('Selected conversation:', selectedConversation?.id);
-        
-        if (!newMessage.trim() || !ws || !selectedConversation || !wsReady) {
-          if (!wsReady) {
-            console.error('WebSocket not ready!');
-            alert('Connection not ready. Please wait a moment and try again.');
-          }
+
+      const websocket = new WebSocket(`${WS_URL}?token=${token}`);
+      wsRef.current = websocket;
+
+      websocket.onopen = () => {
+        if (!isMountedRef.current) {
+          websocket.close();
           return;
         }
-
-      const otherUserId = selectedConversation.user1_id === user.id 
-        ? selectedConversation.user2_id 
-        : selectedConversation.user1_id;
-  
-      const message = {
-        type: 'message',
-        conversation_id: selectedConversation.id,
-        sender_id: user.id,
-        receiver_id: otherUserId,
-        content: newMessage.trim()
+        setWsReady(true);
       };
-  
-      try {
-        ws.send(JSON.stringify(message));
-        setNewMessage('');
-      } catch (error) {
-        console.error('Error sending message:', error);
-        alert('Failed to send message. Please try again.');
+
+      websocket.onmessage = (event) => {
+        if (!isMountedRef.current) return;
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'message') {
+          const currentConversation = selectedConversationRef.current;
+          if (currentConversation && data.conversation_id === currentConversation.id) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === data.message_id)) return prev;
+              return [
+                ...prev,
+                {
+                  id: data.message_id,
+                  conversation_id: data.conversation_id,
+                  sender_id: data.sender_id,
+                  receiver_id: data.receiver_id,
+                  content: data.content,
+                  created_at: data.created_at,
+                  read: false,
+                },
+              ];
+            });
+          }
+          loadConversations();
+        }
+      };
+
+      websocket.onerror = () => {
+        if (!isMountedRef.current) return;
+        setWsReady(false);
+      };
+
+      websocket.onclose = () => {
+        if (!isMountedRef.current) return;
+        setWsReady(false);
+        setTimeout(() => {
+          if (isMountedRef.current) connectWebSocket();
+        }, 3000);
+      };
+
+      setWs(websocket);
+    }, 100);
+  };
+
+  const loadConversations = async () => {
+    if (!isMountedRef.current) return;
+    try {
+      const response = await fetch(`${API_URL}/conversations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok && isMountedRef.current) {
+        const data = await response.json();
+        setConversations(data || []);
       }
-    };
-  
-    const scrollToBottom = () => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-  
-    const getOtherUser = (conversation) => {
-      if (conversation.user1_id === user.id) {
-        return {
-          id: conversation.user2_id,
-          name: conversation.user2_name,
-          picture: conversation.user2_picture_url
-        };
-      } else {
-        return {
-          id: conversation.user1_id,
-          name: conversation.user1_name,
-          picture: conversation.user1_picture_url
-        };
+    } catch (error) {
+      if (isMountedRef.current) console.error('Error loading conversations:', error);
+    }
+  };
+
+  const loadMessages = async (conversationId) => {
+    if (!isMountedRef.current) return;
+    try {
+      const response = await fetch(`${API_URL}/messages/${conversationId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok && isMountedRef.current) {
+        const data = await response.json();
+        setMessages(data || []);
       }
-    };
+    } catch (error) {
+      if (isMountedRef.current) console.error('Error loading messages:', error);
+    }
+  };
+
+  const sendMessage = () => {
+    if (!newMessage.trim() || !ws || !selectedConversation || !wsReady) {
+      if (!wsReady) console.error('WebSocket not ready');
+      return;
+    }
+
+    const otherUserId =
+      selectedConversation.user1_id === user.id
+        ? selectedConversation.user2_id
+        : selectedConversation.user1_id;
+
+    try {
+      ws.send(
+        JSON.stringify({
+          type: 'message',
+          conversation_id: selectedConversation.id,
+          sender_id: user.id,
+          receiver_id: otherUserId,
+          content: newMessage.trim(),
+        })
+      );
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    }
+  };
+
+  const getOtherUser = (conversation) =>
+    conversation.user1_id === user.id
+      ? { id: conversation.user2_id, name: conversation.user2_name, picture: conversation.user2_picture_url }
+      : { id: conversation.user1_id, name: conversation.user1_name, picture: conversation.user1_picture_url };
 
   const handleClose = () => {
     setIsVisible(false);
     setTimeout(() => {
-      if (isMountedRef.current) {
-        onClose();
-      }
-    }, 300); // Wait for animation to complete
+      if (isMountedRef.current) onClose();
+    }, 260);
   };
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const other = selectedConversation ? getOtherUser(selectedConversation) : null;
+
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex md:items-center md:justify-center items-start justify-center z-50 p-2 md:p-4 pt-20 md:pt-4 transition-opacity duration-300"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          handleClose();
-        }
-      }}
+    <div
+      className={`fixed inset-0 z-[70] flex items-stretch justify-center bg-abyss/85 backdrop-blur-[3px] transition-opacity duration-300 md:items-center md:p-6 ${
+        isVisible ? 'opacity-100' : 'opacity-0'
+      }`}
+      onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className={`bg-white rounded-lg w-full max-w-5xl h-[calc(100vh-5rem)] md:h-[600px] flex flex-col md:flex-row overflow-hidden shadow-2xl transition-all duration-500 ease-out ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      }`} onClick={(e) => e.stopPropagation()}>
-        {/* Conversations List */}
-        <div className="w-full md:w-1/3 border-r border-gray-200 flex flex-col max-h-[40vh] md:max-h-none">
-          <div className="bg-blue-600 text-white p-3 md:p-4 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 md:gap-2">
-              <MessageCircle size={20} className="md:w-6 md:h-6" />
-              <h2 className="text-lg md:text-xl font-bold">Messages</h2>
+      <div
+        className={`flex h-full w-full max-w-5xl flex-col border-line bg-panel transition-all duration-300 ease-out md:h-[640px] md:flex-row md:border ${
+          isVisible ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+        }`}
+      >
+        {/* Conversation list — hidden on mobile once a thread is open */}
+        <div
+          className={`w-full flex-col border-line md:flex md:w-[300px] md:shrink-0 md:border-r ${
+            selectedConversation ? 'hidden md:flex' : 'flex'
+          }`}
+        >
+          <div className="flex items-center justify-between border-b border-line px-4 py-3.5">
+            <div>
+              <div className="meta mb-1.5 flex items-center gap-2">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${wsReady ? 'animate-blip bg-mint' : 'bg-dim'}`}
+                />
+                {wsReady ? 'Connected' : 'Connecting'}
+              </div>
+              <h2 className="type-head text-lg">Inbox</h2>
             </div>
-            <button onClick={handleClose} className="text-white hover:text-gray-200">
-              <X size={20} className="md:w-6 md:h-6" />
+            <button
+              onClick={handleClose}
+              aria-label="Close messages"
+              className="flex h-9 w-9 items-center justify-center border border-line text-ash transition-colors hover:border-ember hover:bg-ember hover:text-abyss"
+            >
+              <X size={16} />
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {conversations.length === 0 ? (
-              <div className="p-4 md:p-8 text-center text-gray-500">
-                <MessageCircle size={36} className="mx-auto mb-3 md:mb-4 text-gray-300 md:w-12 md:h-12" />
-                <p className="text-sm md:text-base">No conversations yet</p>
-                <p className="text-xs md:text-sm mt-1 md:mt-2">Click "Message" on a post to start chatting</p>
+              <div className="px-6 py-14 text-center">
+                <MessageCircle size={30} strokeWidth={1} className="mx-auto mb-4 text-[#1E6B93]" />
+                <p className="text-sm text-ash">No conversations yet</p>
+                <p className="meta mt-2 leading-relaxed">Hit “Message” on any listing to start one</p>
               </div>
             ) : (
-              conversations.map(conv => {
+              conversations.map((conv) => {
                 const otherUser = getOtherUser(conv);
+                const active = selectedConversation?.id === conv.id;
                 return (
-                  <div
+                  <button
                     key={conv.id}
                     onClick={() => setSelectedConversation(conv)}
-                    className={`p-3 md:p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedConversation?.id === conv.id ? 'bg-blue-50' : ''
+                    className={`relative flex w-full items-center gap-3 border-b border-line px-4 py-3.5 text-left transition-colors ${
+                      active ? 'bg-raised' : 'hover:bg-raised/60'
                     }`}
                   >
-                    <div className="flex items-center gap-2 md:gap-3">
-                      {otherUser.picture ? (
-                        <img
-                          src={`${API_URL.replace('/api', '')}${otherUser.picture}`}
-                          alt={otherUser.name}
-                          className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-200 flex items-center justify-center">
-                          <User size={20} className="text-blue-600 md:w-6 md:h-6" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm md:text-base text-gray-900 truncate">{otherUser.name}</p>
-                        <p className="text-xs md:text-sm text-gray-500 truncate">{conv.last_message || 'No messages yet'}</p>
-                      </div>
+                    <span
+                      className={`absolute inset-y-0 left-0 w-[2px] ${active ? 'bg-sun' : 'bg-transparent'}`}
+                    />
+                    <Face picture={otherUser.picture} name={otherUser.name} size={38} active={active} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-semibold text-chalk">{otherUser.name}</p>
+                      <p className="mt-1 truncate text-xs text-dim">
+                        {conv.last_message || 'No messages yet'}
+                      </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })
             )}
           </div>
         </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {selectedConversation ? (
+        {/* Thread */}
+        <div className={`flex flex-1 flex-col ${selectedConversation ? 'flex' : 'hidden md:flex'}`}>
+          {selectedConversation && other ? (
             <>
-              {/* Chat Header */}
-              <div className="bg-gray-100 p-3 md:p-4 border-b border-gray-200">
-                <div className="flex items-center gap-2 md:gap-3">
-                  {(() => {
-                    const otherUser = getOtherUser(selectedConversation);
-                    return (
-                      <>
-                        {otherUser.picture ? (
-                          <img
-                            src={`${API_URL.replace('/api', '')}${otherUser.picture}`}
-                            alt={otherUser.name}
-                            className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-200 flex items-center justify-center">
-                            <User size={18} className="text-blue-600 md:w-5 md:h-5" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-semibold text-sm md:text-base text-gray-900">{otherUser.name}</p>
-                        </div>
-                      </>
-                    );
-                  })()}
+              <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+                <button
+                  onClick={() => setSelectedConversation(null)}
+                  aria-label="Back to conversations"
+                  className="flex h-8 w-8 items-center justify-center border border-line text-ash md:hidden"
+                >
+                  <ArrowLeft size={15} />
+                </button>
+                <Face picture={other.picture} name={other.name} size={34} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-semibold text-chalk">{other.name}</p>
+                  <p className="meta mt-1">Direct message</p>
                 </div>
+                <button
+                  onClick={handleClose}
+                  aria-label="Close messages"
+                  className="flex h-8 w-8 items-center justify-center border border-line text-ash transition-colors hover:border-ember hover:bg-ember hover:text-abyss md:hidden"
+                >
+                  <X size={15} />
+                </button>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 bg-gray-50">
+              <div className="blueprint flex-1 space-y-3 overflow-y-auto bg-[#002A42] p-4">
+                {messages.length === 0 && (
+                  <div className="py-10 text-center">
+                    <p className="meta">Say something first</p>
+                  </div>
+                )}
                 {messages.map((message) => {
                   const isMe = message.sender_id === user.id;
                   return (
-                    <div
-                      key={message.id}
-                      className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                    >
+                    <div key={message.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div
-                        className={`max-w-[75%] md:max-w-xs lg:max-w-md px-3 md:px-4 py-1.5 md:py-2 rounded-lg ${
-                          isMe
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-900 border border-gray-200'
+                        className={`max-w-[78%] px-3.5 py-2.5 md:max-w-md ${
+                          isMe ? 'bg-sun text-abyss' : 'border border-line bg-panel text-chalk'
                         }`}
                       >
-                        <p className="break-words text-sm md:text-base">{message.content}</p>
+                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                          {message.content}
+                        </p>
                         <p
-                          className={`text-xs mt-0.5 md:mt-1 ${
-                            isMe ? 'text-blue-100' : 'text-gray-500'
-                          }`}
+                          className={`num mt-1.5 text-[10px] ${isMe ? 'text-abyss/60' : 'text-dim'}`}
                         >
                           {new Date(message.created_at).toLocaleTimeString([], {
                             hour: '2-digit',
-                            minute: '2-digit'
+                            minute: '2-digit',
                           })}
                         </p>
                       </div>
@@ -376,37 +356,36 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input */}
-              <div className="p-3 md:p-4 bg-white border-t border-gray-200">
-                <div className="flex gap-1.5 md:gap-2">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    placeholder="Type a message..."
-                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!newMessage.trim()}
-                    className="bg-blue-600 text-white px-4 md:px-6 py-1.5 md:py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1 md:gap-2"
-                  >
-                    <Send size={18} className="md:w-5 md:h-5" />
-                  </button>
-                </div>
+              <div className="flex gap-px border-t border-line bg-line">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder={wsReady ? 'Write a message…' : 'Connecting…'}
+                  className="flex-1 border-0 bg-panel px-4 py-3.5 text-sm text-chalk outline-none placeholder:text-dim"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim() || !wsReady}
+                  aria-label="Send"
+                  className="btn btn-sun rounded-none px-6 disabled:bg-panel disabled:text-dim"
+                >
+                  <Send size={16} />
+                </button>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
-              <div className="text-center p-4">
-                <MessageCircle size={48} className="mx-auto mb-3 md:mb-4 text-gray-300 md:w-16 md:h-16" />
-                <p className="text-sm md:text-base">Select a conversation to start messaging</p>
+            <div className="flex flex-1 items-center justify-center p-6">
+              <div className="text-center">
+                <MessageCircle size={38} strokeWidth={1} className="mx-auto mb-4 text-[#1E6B93]" />
+                <p className="type-head text-base text-chalk">Pick a conversation</p>
+                <p className="meta mt-2">Your messages stay on campus</p>
               </div>
             </div>
           )}

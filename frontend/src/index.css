@@ -1,3 +1,361 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   BruinMarket — royal & yellow
+   A dark, editorial system: hairlines instead of shadows,
+   monospace metadata, one loud accent.
+   ============================================================ */
+
+@layer base {
+  :root {
+    --ink: #00121D;
+    --panel: #004464;
+    --line: #20252E;
+    --sun: #FFD60A;
+    --header: 56px;
+    --header-lg: 64px;
+    --ticker: 28px;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--ink);
+    color: #eaf4fb;
+    font-family: 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-variation-settings: 'wdth' 100;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--sun);
+    color: #00121D;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Native dropdowns need explicit dark paint */
+  select option {
+    background: #004464;
+    color: #eaf4fb;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #7FA8BE;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #eaf4fb;
+    -webkit-box-shadow: 0 0 0 1000px #004464 inset;
+    caret-color: #eaf4fb;
+  }
+
+  /* Kill the number-input spinners — prices read as type, not widgets */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--sun);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #14688f transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #14688f;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2a86b0;
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  /* ---------- Type ---------- */
+
+  /* Poster type: wide, heavy, uppercase, optically tightened */
+  .type-display {
+    font-variation-settings: 'wdth' 112, 'wght' 800;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+    text-transform: uppercase;
+  }
+
+  .type-head {
+    font-variation-settings: 'wdth' 108, 'wght' 700;
+    letter-spacing: -0.015em;
+    text-transform: uppercase;
+  }
+
+  /* The metadata voice — every label, tag, timestamp and count */
+  .meta {
+    font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #92b8ce;
+  }
+
+  .meta-hi {
+    font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #eaf4fb;
+  }
+
+  .num {
+    font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  /* ---------- Controls ---------- */
+
+  .field {
+    width: 100%;
+    background: #002A42;
+    border: 1px solid #14688f;
+    border-radius: 2px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    color: #eaf4fb;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+  .field:hover {
+    border-color: #2a86b0;
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--sun);
+    background: #003049;
+  }
+
+  .field-select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2rem;
+    background-image: linear-gradient(45deg, transparent 50%, #92b8ce 50%),
+      linear-gradient(135deg, #92b8ce 50%, transparent 50%);
+    background-position: calc(100% - 15px) calc(50% + 1px), calc(100% - 10px) calc(50% + 1px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 2px;
+    padding: 0.625rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease,
+      transform 0.18s ease;
+    white-space: nowrap;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-sun {
+    background: var(--sun);
+    color: #00121D;
+  }
+  .btn-sun:hover:not(:disabled) {
+    background: #FFE355;
+  }
+
+  .btn-ghost {
+    border: 1px solid #14688f;
+    color: #eaf4fb;
+    background: transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: #2a86b0;
+    background: #005075;
+  }
+
+  .btn-quiet {
+    color: #b6d3e4;
+    background: transparent;
+  }
+  .btn-quiet:hover:not(:disabled) {
+    color: #eaf4fb;
+    background: #005075;
+  }
+
+  .btn-danger {
+    border: 1px solid #14688f;
+    color: #FF9686;
+    background: transparent;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #ff5a45;
+    border-color: #ff5a45;
+    color: #00121D;
+  }
+
+  /* ---------- Surfaces ---------- */
+
+  /* Corner brackets — used on drop zones and empty states */
+  .brackets::before,
+  .brackets::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: var(--sun);
+    pointer-events: none;
+  }
+  .brackets::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid;
+    border-left: 2px solid;
+  }
+  .brackets::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 2px solid;
+    border-right: 2px solid;
+  }
+
+  /* Faint blueprint grid on the main canvas */
+  .blueprint {
+    background-image: linear-gradient(to right, rgba(190, 228, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(190, 228, 255, 0.04) 1px, transparent 1px);
+    background-size: 88px 88px;
+  }
+
+  /* Film grain — sits over everything, costs nothing */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.35;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- Motion ---------- */
+
+  .marquee {
+    position: relative;
+    overflow: hidden;
+    mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  }
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 60s linear infinite;
+  }
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+
+  /* Gold rule that draws itself across a card on hover */
+  .sweep {
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .group:hover .sweep {
+    transform: scaleX(1);
+  }
+
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent);
+    animation: shimmer 1.6s infinite;
+  }
+
+  /* Diagonal hazard band for sold listings */
+  .hazard {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      #ff5a45,
+      #ff5a45 8px,
+      #00121D 8px,
+      #00121D 16px
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Keyframes used by the component classes above. Defined here rather than in
+   tailwind.config so they survive regardless of which utilities get generated. */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}

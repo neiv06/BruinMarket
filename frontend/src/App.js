@@ -215,7 +215,7 @@ const Sheet = ({ label, title, onClose, children, size = 'md', headerRight }) =>
 
 const TypeTag = ({ type }) => (
   <span
-    className={`meta-hi px-2 py-1 ${
+    className={`meta-hi px-3 py-1.5 text-[14px] font-bold ${
       type === 'selling' ? 'bg-sun text-abyss' : 'bg-royal-light text-abyss'
     }`}
   >
@@ -279,11 +279,11 @@ const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMe
 
             {post.sold && (
               <div className="absolute inset-x-0 top-1/2 -translate-y-1/2">
-                <div className="hazard h-1.5 w-full opacity-90" />
-                <div className="flex justify-center bg-ember py-1.5">
-                  <span className="meta-hi text-abyss">Sold</span>
+                <div className="hazard h-2.5 w-full opacity-90" />
+                <div className="flex justify-center bg-ember py-2.5">
+                  <span className="meta-hi text-[18px] font-bold tracking-[0.12em] text-abyss">Sold</span>
                 </div>
-                <div className="hazard h-1.5 w-full opacity-90" />
+                <div className="hazard h-2.5 w-full opacity-90" />
               </div>
             )}
           </div>
@@ -488,7 +488,7 @@ const PostFullView = ({
 
             {post.sold && (
               <div className="absolute left-0 top-6 flex items-center gap-2 bg-ember px-3 py-1.5">
-                <span className="meta-hi text-abyss">Sold</span>
+                <span className="meta-hi text-[14px] font-bold text-abyss">Sold</span>
               </div>
             )}
           </div>

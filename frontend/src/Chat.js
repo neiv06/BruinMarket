@@ -14,7 +14,7 @@ const Initial = ({ name, size = 40, active }) => (
     }`}
   >
     <span className="num text-[12px] font-bold">
-      {(name || '?').trim().charAt(0).toUpperCase()}
+      {(name || '?').trim().charAt(0).toLowerCase()}
     </span>
   </div>
 );
@@ -198,7 +198,7 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      alert('failed to send message. please try again.');
     }
   };
 

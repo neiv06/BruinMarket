@@ -38,21 +38,25 @@ const formatDate = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();
   const secs = Math.floor((now - date) / 1000);
-  if (secs < 60) return 'JUST NOW';
-  if (secs < 3600) return `${Math.floor(secs / 60)}M AGO`;
-  if (secs < 86400) return `${Math.floor(secs / 3600)}H AGO`;
-  if (secs < 604800) return `${Math.floor(secs / 86400)}D AGO`;
+  if (secs < 60) return 'just now';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  if (secs < 604800) return `${Math.floor(secs / 86400)}d ago`;
   return date
     .toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     })
-    .toUpperCase();
+    .toLowerCase();
 };
 
+// Browser dialogs are drawn outside the page, where CSS can't lowercase them
+const say = (msg) => window.alert(String(msg).toLowerCase());
+const ask = (msg) => window.confirm(String(msg).toLowerCase());
+
 const priceLabel = (price) =>
-  Number(price) === 0 ? 'FREE' : `$${Number(price).toLocaleString('en-US')}`;
+  Number(price) === 0 ? 'free' : `$${Number(price).toLocaleString('en-US')}`;
 
 /* ============================================================
    Primitives
@@ -97,7 +101,7 @@ const Avatar = ({ url, name, size = 32, onClick, ring }) => {
   return (
     <div style={px} onClick={onClick} className={`${cls} flex items-center justify-center`}>
       <span className="num text-[11px] font-bold text-dim">
-        {(name || '?').trim().charAt(0).toUpperCase()}
+        {(name || '?').trim().charAt(0).toLowerCase()}
       </span>
     </div>
   );
@@ -110,7 +114,7 @@ const Field = ({ label, hint, children, required }) => (
         {label}
         {required && <span className="text-sun"> *</span>}
       </span>
-      {hint && <span className="meta normal-case tracking-normal">{hint}</span>}
+      {hint && <span className="meta tracking-normal">{hint}</span>}
     </div>
     {children}
   </label>
@@ -125,7 +129,7 @@ const Segmented = ({ options, value, onChange }) => (
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={`px-4 py-3 text-[13px] font-semibold uppercase tracking-[0.06em] transition-colors ${
+          className={`px-4 py-3 text-[13px] font-semibold lowercase transition-colors ${
             active
               ? opt.tone === 'blue'
                 ? 'bg-royal text-white'
@@ -302,7 +306,7 @@ const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMe
             {post.location && (
               <div className="mt-2 flex items-center gap-1.5 text-dim">
                 <MapPin size={11} strokeWidth={2} />
-                <span className="meta truncate normal-case tracking-normal">{post.location}</span>
+                <span className="meta truncate tracking-normal">{post.location}</span>
               </div>
             )}
 
@@ -327,7 +331,7 @@ const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMe
 
         <div className="flex items-center gap-2 border-t border-line px-4 py-2.5">
           <Avatar url={post.user_profile_picture_url} name={post.user_name} size={22} />
-          <span className="meta flex-1 truncate normal-case tracking-normal text-ash">
+          <span className="meta flex-1 truncate tracking-normal text-ash">
             {post.user_name}
           </span>
           <span className="meta shrink-0">{formatDate(post.created_at)}</span>
@@ -429,7 +433,7 @@ const PostFullView = ({
                   onClick={() => {
                     setMenu(false);
                     const q = post.sold ? 'Unmark this post as sold?' : 'Mark this post as sold?';
-                    if (window.confirm(q)) onMarkAsSold(post.id, !post.sold);
+                    if (ask(q)) onMarkAsSold(post.id, !post.sold);
                   }}
                   className="flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left text-[13px] text-chalk transition-colors hover:bg-raised"
                 >
@@ -440,7 +444,7 @@ const PostFullView = ({
                 <button
                   onClick={() => {
                     setMenu(false);
-                    if (window.confirm('Delete this post permanently?')) {
+                    if (ask('Delete this post permanently?')) {
                       onDelete(post.id);
                       onClose();
                     }
@@ -728,7 +732,7 @@ const PostComposer = ({ mode, post, onClose, onSubmit, categories: cats, token }
                 className="field field-select"
               >
                 {cats.map((c) => (
-                  <option key={c.value} value={c.value}>{c.name}</option>
+                  <option key={c.value} value={c.value}>{c.name.toLowerCase()}</option>
                 ))}
               </select>
             </Field>
@@ -758,7 +762,7 @@ const PostComposer = ({ mode, post, onClose, onSubmit, categories: cats, token }
                     key={condition}
                     type="button"
                     onClick={() => set({ condition })}
-                    className={`px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors ${
+                    className={`px-2 py-2.5 text-[11px] font-semibold lowercase transition-colors ${
                       form.condition === condition
                         ? 'bg-sun text-abyss'
                         : 'bg-panel text-ash hover:bg-raised hover:text-chalk'
@@ -797,7 +801,7 @@ const PostComposer = ({ mode, post, onClose, onSubmit, categories: cats, token }
           <div>
             <div className="mb-2 flex items-baseline justify-between">
               <span className="meta">Photos & video</span>
-              <span className="meta normal-case tracking-normal">10MB max each</span>
+              <span className="meta tracking-normal">10MB max each</span>
             </div>
 
             <div className="brackets relative border border-line bg-[#002A42]">
@@ -1017,9 +1021,9 @@ const AuthModal = ({ onClose, onSuccess, initialIsSignUp = false }) => {
                     onChange={(e) => setFormData({ ...formData, year: e.target.value })}
                     className="field field-select"
                   >
-                    <option value="">Select year</option>
+                    <option value="">select year</option>
                     {YEARS.map((y) => (
-                      <option key={y} value={y}>{y}</option>
+                      <option key={y} value={y}>{y.toLowerCase()}</option>
                     ))}
                   </select>
                 </Field>
@@ -1136,11 +1140,11 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit, onMarkAsSold }) => {
     const file = e.target.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file');
+      say('Please upload an image file');
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      alert('Image must be less than 10MB');
+      say('Image must be less than 10MB');
       return;
     }
 
@@ -1159,7 +1163,7 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit, onMarkAsSold }) => {
       window.location.reload();
     } catch (error) {
       console.error('Error uploading profile picture:', error);
-      alert('Failed to upload profile picture');
+      say('Failed to upload profile picture');
     } finally {
       setUploadingPicture(false);
     }
@@ -1167,7 +1171,7 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit, onMarkAsSold }) => {
 
   const handleYearUpdate = async () => {
     if (!selectedYear) {
-      alert('Please select a year');
+      say('Please select a year');
       return;
     }
     setUpdatingYear(true);
@@ -1186,7 +1190,7 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit, onMarkAsSold }) => {
       window.location.reload();
     } catch (error) {
       console.error('Error updating year:', error);
-      alert(error.message || 'Failed to update year');
+      say(error.message || 'Failed to update year');
     } finally {
       setUpdatingYear(false);
     }
@@ -1241,9 +1245,9 @@ const ProfilePage = ({ user, token, onDeletePost, onEdit, onMarkAsSold }) => {
                     className="field field-select w-auto"
                     disabled={updatingYear}
                   >
-                    <option value="">Select year</option>
+                    <option value="">select year</option>
                     {YEARS.map((y) => (
-                      <option key={y} value={y}>{y}</option>
+                      <option key={y} value={y}>{y.toLowerCase()}</option>
                     ))}
                   </select>
                   <button onClick={handleYearUpdate} disabled={updatingYear} className="btn btn-sun">
@@ -1433,7 +1437,7 @@ const FilterPanel = ({
           <button
             key={opt.value}
             onClick={() => setFilterType(opt.value)}
-            className={`py-2 text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors ${
+            className={`py-2 text-[11px] font-semibold lowercase transition-colors ${
               filterType === opt.value ? 'bg-sun text-abyss' : 'bg-panel text-ash hover:bg-raised hover:text-chalk'
             }`}
           >
@@ -1448,7 +1452,7 @@ const FilterPanel = ({
       <div className="flex items-center gap-2">
         <input
           type="number"
-          placeholder="MIN"
+          placeholder="min"
           value={priceRange.min}
           onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
           className="field num text-center text-xs"
@@ -1456,7 +1460,7 @@ const FilterPanel = ({
         <span className="h-px w-3 shrink-0 bg-edge" />
         <input
           type="number"
-          placeholder="MAX"
+          placeholder="max"
           value={priceRange.max}
           onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
           className="field num text-center text-xs"
@@ -1473,18 +1477,18 @@ const FilterPanel = ({
 const Ticker = ({ posts }) => {
   const items = posts.length
     ? posts.slice(0, 16).map((p) => ({
-        tag: p.type === 'selling' ? 'SALE' : 'WANTED',
+        tag: p.type === 'selling' ? 'sale' : 'wanted',
         text: p.title,
-        price: p.sold ? 'SOLD' : priceLabel(p.price),
+        price: p.sold ? 'sold' : priceLabel(p.price),
       }))
-    : categories.slice(1).map((c) => ({ tag: 'CATEGORY', text: c.name, price: '—' }));
+    : categories.slice(1).map((c) => ({ tag: 'category', text: c.name, price: '—' }));
 
   const group = (
     <div className="flex shrink-0 items-center">
       {items.map((it, i) => (
         <span key={i} className="flex items-center gap-2 whitespace-nowrap px-5">
           <span className="meta-hi text-sun">{it.tag}</span>
-          <span className="meta normal-case tracking-normal text-ash">{it.text}</span>
+          <span className="meta tracking-normal text-ash">{it.text}</span>
           <span className="num text-[10px] text-chalk">{it.price}</span>
           <span className="ml-3 h-1 w-1 bg-line" />
         </span>
@@ -1512,7 +1516,7 @@ const Ticker = ({ posts }) => {
    Landing
    ============================================================ */
 
-const ROTATING = ['TICKETS', 'SWIPES', 'TEXTBOOKS', 'COUCHES', 'PARKING', 'SNEAKERS', 'RIDES'];
+const ROTATING = ['tickets', 'swipes', 'textbooks', 'couches', 'parking', 'sneakers', 'rides'];
 
 const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, showAuthModal, setShowAuthModal }) => {
   const [word, setWord] = useState(0);
@@ -1774,13 +1778,13 @@ const BruinMarket = () => {
       setShowCreateModal(false);
     } catch (error) {
       console.error('Error creating post:', error);
-      alert('Failed to create post. Please try again.');
+      say('Failed to create post. Please try again.');
       throw error;
     }
   };
 
   const deletePost = async (postId) => {
-    if (!window.confirm('Delete this post permanently?')) return;
+    if (!ask('Delete this post permanently?')) return;
     try {
       const response = await fetch(`${API_URL}/posts/${postId}`, {
         method: 'DELETE',
@@ -1788,13 +1792,13 @@ const BruinMarket = () => {
       });
       if (!response.ok) {
         const data = await response.json();
-        alert(data.error || 'Failed to delete post');
+        say(data.error || 'Failed to delete post');
         return;
       }
       setPosts(posts.filter((p) => p.id !== postId));
     } catch (error) {
       console.error('Error deleting post:', error);
-      alert('Failed to delete post. Please try again.');
+      say('Failed to delete post. Please try again.');
     }
   };
 
@@ -1810,13 +1814,13 @@ const BruinMarket = () => {
         const errorMessage =
           errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
         console.error('Error updating post sold status:', errorMessage, response.status);
-        alert(`Failed to update post sold status: ${errorMessage}`);
+        say(`Failed to update post sold status: ${errorMessage}`);
         return;
       }
       loadPosts();
     } catch (error) {
       console.error('Error updating post sold status:', error);
-      alert(`Failed to update post sold status: ${error.message || 'Please try again.'}`);
+      say(`Failed to update post sold status: ${error.message || 'Please try again.'}`);
     }
   };
 
@@ -1835,7 +1839,7 @@ const BruinMarket = () => {
       loadPosts();
     } catch (error) {
       console.error('Error updating post:', error);
-      alert('Failed to update post. Please try again.');
+      say('Failed to update post. Please try again.');
       throw error;
     }
   };
@@ -1850,7 +1854,7 @@ const BruinMarket = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.status === 401) {
-        alert('Your session has expired. Please log in again.');
+        say('Your session has expired. Please log in again.');
         return;
       }
       if (!response.ok) {
@@ -1862,7 +1866,7 @@ const BruinMarket = () => {
       setShowChat(true);
     } catch (error) {
       console.error('Error creating conversation:', error);
-      alert(`Failed to create conversation: ${error.message || 'Please try again.'}`);
+      say(`Failed to create conversation: ${error.message || 'Please try again.'}`);
     }
   };
 
@@ -1876,7 +1880,7 @@ const BruinMarket = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.status === 401) {
-        alert('Your session has expired. Please log in again.');
+        say('Your session has expired. Please log in again.');
         return;
       }
       if (!response.ok) {
@@ -1889,7 +1893,7 @@ const BruinMarket = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      alert(`Failed to load user profile: ${error.message || 'Please try again.'}`);
+      say(`Failed to load user profile: ${error.message || 'Please try again.'}`);
     }
   };
 
@@ -2091,7 +2095,7 @@ const BruinMarket = () => {
               {searchTerm && (
                 <div className="meta mb-4 flex items-center gap-2">
                   Matching
-                  <span className="meta-hi bg-raised px-2 py-1 normal-case tracking-normal">
+                  <span className="meta-hi bg-raised px-2 py-1 tracking-normal">
                     {searchTerm}
                   </span>
                 </div>

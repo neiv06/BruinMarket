@@ -10,9 +10,9 @@
 
 @layer base {
   :root {
-    --ink: #00121D;
+    --ink: #003B5C;
     --panel: #004464;
-    --line: #20252E;
+    --line: #14688F;
     --sun: #FFD60A;
     --header: 56px;
     --header-lg: 64px;
@@ -34,6 +34,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    text-transform: lowercase;
   }
 
   ::selection {
@@ -55,8 +56,21 @@
     color: #eaf4fb;
   }
 
+  /* Preflight resets these to none, which would opt every button
+     (category rows, listing cards) out of the inherited lowercase */
+  button,
+  select {
+    text-transform: inherit;
+  }
+
+  input,
+  textarea {
+    text-transform: none;
+  }
+
   input::placeholder,
   textarea::placeholder {
+    text-transform: lowercase;
     color: #7FA8BE;
   }
 
@@ -108,18 +122,18 @@
 @layer components {
   /* ---------- Type ---------- */
 
-  /* Poster type: wide, heavy, uppercase, optically tightened */
+  /* Poster type: wide, heavy, lowercase, optically tightened */
   .type-display {
     font-variation-settings: 'wdth' 112, 'wght' 800;
-    letter-spacing: -0.03em;
-    line-height: 0.9;
-    text-transform: uppercase;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    text-transform: lowercase;
   }
 
   .type-head {
     font-variation-settings: 'wdth' 108, 'wght' 700;
     letter-spacing: -0.015em;
-    text-transform: uppercase;
+    text-transform: lowercase;
   }
 
   /* The metadata voice — every label, tag, timestamp and count */
@@ -127,8 +141,8 @@
     font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 10px;
     line-height: 1.1;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
     color: #92b8ce;
   }
 
@@ -136,8 +150,8 @@
     font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 10px;
     line-height: 1.1;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
     color: #eaf4fb;
   }
 
@@ -188,8 +202,8 @@
     padding: 0.625rem 1rem;
     font-size: 0.8125rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: lowercase;
     transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease,
       transform 0.18s ease;
     white-space: nowrap;

@@ -323,7 +323,10 @@ const Chat = ({ user, token, onClose, initialConversation }) => {
                 </button>
               </div>
 
-              <div className="blueprint flex-1 space-y-3 overflow-y-auto bg-[#002A42] p-4">
+              <div
+                key={selectedConversation.id}
+                className="blueprint animate-fadeIn flex-1 space-y-3 overflow-y-auto bg-[#002A42] p-4"
+              >
                 {messages.length === 0 && (
                   <div className="py-10 text-center">
                     <p className="meta">Say something first</p>

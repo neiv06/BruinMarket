@@ -66,7 +66,7 @@ const VerifyEmail = () => {
 
         <div className="p-6 md:p-8">
           {status === 'verifying' && (
-            <div className="py-6 text-center">
+            <div className="animate-fadeIn py-6 text-center">
               <div className="relative mx-auto h-px w-40 overflow-hidden bg-line">
                 <span className="absolute inset-y-0 left-0 w-1/3 animate-[marquee_1.2s_linear_infinite] bg-sun" />
               </div>
@@ -76,7 +76,7 @@ const VerifyEmail = () => {
           )}
 
           {status === 'success' && (
-            <>
+            <div className="animate-fadeIn">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-mint/40 bg-mint/10">
                   <Check size={22} className="text-mint" />
@@ -106,11 +106,11 @@ const VerifyEmail = () => {
                 Enter the market <ArrowRight size={16} />
               </button>
               <p className="meta mt-4 text-center">You are now logged in</p>
-            </>
+            </div>
           )}
 
           {status === 'error' && (
-            <>
+            <div className="animate-fadeIn">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-ember/40 bg-ember/10">
                   <X size={22} className="text-ember" />
@@ -124,7 +124,7 @@ const VerifyEmail = () => {
               <button onClick={() => navigate('/')} className="btn btn-ghost mt-6 w-full py-3.5">
                 Back to BruinMarket
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>

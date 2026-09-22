@@ -223,14 +223,17 @@ const TypeTag = ({ type }) => (
   </span>
 );
 
-const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMessageUser, onViewUserProfile }) => {
+const PostCard = ({ post, onDelete, onEdit, onMarkAsSold, canDelete, token, onMessageUser, onViewUserProfile, index = 0 }) => {
   const [open, setOpen] = useState(false);
   const Icon = iconFor(post.category);
   const media = post.media && post.media.length > 0 ? post.media[0] : null;
 
   return (
     <>
-      <article className="group relative flex flex-col border-b border-r border-line bg-panel transition-colors duration-300 hover:bg-raised">
+      <article
+        className="group animate-rise relative flex flex-col border-b border-r border-line bg-panel transition-colors duration-300 hover:bg-raised"
+        style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
+      >
         {/* yellow rule draws itself across the top on hover */}
         <span className="sweep absolute inset-x-0 top-0 z-10 h-[2px] bg-sun" />
 
@@ -374,7 +377,7 @@ const CardSkeleton = () => (
 );
 
 const EmptyState = ({ title, body, action }) => (
-  <div className="brackets relative border border-line bg-panel px-6 py-20 text-center">
+  <div className="brackets animate-fadeIn relative border border-line bg-panel px-6 py-20 text-center">
     <div className="blueprint pointer-events-none absolute inset-0 opacity-60" />
     <div className="relative">
       <Package size={40} strokeWidth={1} className="mx-auto mb-5 text-[#1E6B93]" />
@@ -433,7 +436,10 @@ const PostFullView = ({
                   onClick={() => {
                     setMenu(false);
                     const q = post.sold ? 'Unmark this post as sold?' : 'Mark this post as sold?';
-                    if (ask(q)) onMarkAsSold(post.id, !post.sold);
+                    if (ask(q)) {
+                      onMarkAsSold(post.id, !post.sold);
+                      onClose();
+                    }
                   }}
                   className="flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left text-[13px] text-chalk transition-colors hover:bg-raised"
                 >
@@ -464,7 +470,7 @@ const PostFullView = ({
         <div className="flex flex-col border-b border-line bg-[#002A42] md:border-b-0 md:border-r">
           <div className="relative flex h-64 items-center justify-center overflow-hidden md:h-auto md:flex-1 md:min-h-[420px]">
             {current ? (
-              <>
+              <div key={index} className="animate-fadeIn absolute inset-0 flex items-center justify-center">
                 <div
                   aria-hidden
                   className="absolute inset-0 scale-110 bg-cover bg-center opacity-40 blur-2xl"
@@ -479,7 +485,7 @@ const PostFullView = ({
                 ) : (
                   <video src={asset(current.url)} controls className="relative max-h-full max-w-full" />
                 )}
-              </>
+              </div>
             ) : (
               <div className="blueprint flex h-full w-full items-center justify-center">
                 <Icon size={56} strokeWidth={0.75} className="text-[#1E6B93]" />
@@ -1520,6 +1526,13 @@ const ROTATING = ['tickets', 'swipes', 'textbooks', 'couches', 'parking', 'sneak
 
 const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, showAuthModal, setShowAuthModal }) => {
   const [word, setWord] = useState(0);
+  const [leaving, setLeaving] = useState(false);
+
+  // Fade the page away before handing over to the marketplace
+  const exit = (go) => (...args) => {
+    setLeaving(true);
+    setTimeout(() => go(...args), 260);
+  };
 
   useEffect(() => {
     const id = setInterval(() => setWord((w) => (w + 1) % ROTATING.length), 1900);
@@ -1527,7 +1540,11 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
   }, []);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-ink">
+    <div
+      className={`relative flex min-h-screen flex-col overflow-hidden bg-ink transition-opacity duration-300 ease-out ${
+        leaving ? 'opacity-0' : 'opacity-100'
+      }`}
+    >
       {/* Campus plate, duotoned royal */}
       <div className="absolute inset-0 overflow-hidden">
         <div
@@ -1549,7 +1566,7 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onViewMarketplace} className="btn btn-quiet hidden sm:inline-flex">
+          <button onClick={exit(onViewMarketplace)} className="btn btn-quiet hidden sm:inline-flex">
             Browse
           </button>
           <button onClick={onLogin} className="btn btn-ghost">Log in</button>
@@ -1596,7 +1613,7 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
               Get started <ArrowRight size={16} />
             </button>
             <button
-              onClick={onViewMarketplace}
+              onClick={exit(onViewMarketplace)}
               className="btn rounded-none bg-panel px-8 py-4 text-sm text-chalk transition-colors hover:bg-raised"
             >
               Look around first
@@ -1616,7 +1633,7 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
               return (
                 <button
                   key={cat.value}
-                  onClick={onViewMarketplace}
+                  onClick={exit(onViewMarketplace)}
                   className="group relative flex items-center gap-3 bg-panel px-4 py-4 text-left transition-colors hover:bg-sun"
                 >
                   <Icon
@@ -1646,7 +1663,7 @@ const LandingPage = ({ onLogin, onSignUp, onAuthSuccess, onViewMarketplace, show
         <AuthModal
           key={`auth-${showAuthModal.isSignUp}`}
           onClose={() => setShowAuthModal({ show: false, isSignUp: false })}
-          onSuccess={onAuthSuccess}
+          onSuccess={exit(onAuthSuccess)}
           initialIsSignUp={showAuthModal.isSignUp}
         />
       )}
@@ -1678,6 +1695,22 @@ const BruinMarket = () => {
   const [viewMarketplaceWithoutLogin, setViewMarketplaceWithoutLogin] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [mobileSidebarVisible, setMobileSidebarVisible] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const fadeTimer = useRef(null);
+
+  // Switching views fades the outgoing column out first, then swaps and fades
+  // the new one in. React has no exit animation, so the swap has to wait.
+  const fadeTo = useCallback((apply) => {
+    if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    setLeaving(true);
+    fadeTimer.current = setTimeout(() => {
+      apply();
+      setLeaving(false);
+      fadeTimer.current = null;
+    }, 180);
+  }, []);
+
+  useEffect(() => () => { if (fadeTimer.current) clearTimeout(fadeTimer.current); }, []);
 
   const logout = useCallback(() => {
     setToken(null);
@@ -1727,13 +1760,15 @@ const BruinMarket = () => {
   };
 
   const navigateToAll = () => {
-    setFilterCategory('all');
-    setFilterType('all');
-    setPriceRange({ min: '', max: '' });
-    setSearchTerm('');
-    setShowProfile(false);
-    setViewingUserProfile(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    fadeTo(() => {
+      setFilterCategory('all');
+      setFilterType('all');
+      setPriceRange({ min: '', max: '' });
+      setSearchTerm('');
+      setShowProfile(false);
+      setViewingUserProfile(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   };
 
   const loadPosts = async () => {
@@ -1888,9 +1923,11 @@ const BruinMarket = () => {
         throw new Error(errorData.error || `Failed to fetch user profile (${response.status})`);
       }
       const data = await response.json();
-      setViewingUserProfile(data);
-      setShowProfile(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      fadeTo(() => {
+        setViewingUserProfile(data);
+        setShowProfile(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
     } catch (error) {
       console.error('Error fetching user profile:', error);
       say(`Failed to load user profile: ${error.message || 'Please try again.'}`);
@@ -1939,12 +1976,15 @@ const BruinMarket = () => {
 
   const filterProps = {
     searchTerm, setSearchTerm, filterCategory,
-    setFilterCategory: (v) => { setFilterCategory(v); setShowProfile(false); setViewingUserProfile(null); },
+    setFilterCategory: (v) => {
+      if (v === filterCategory && !showProfile && !viewingUserProfile) return;
+      fadeTo(() => { setFilterCategory(v); setShowProfile(false); setViewingUserProfile(null); });
+    },
     filterType, setFilterType, priceRange, setPriceRange, showProfile,
   };
 
   return (
-    <div className="min-h-screen bg-ink">
+    <div className="animate-fadeIn min-h-screen bg-ink">
       <div className="grain" />
 
       {/* Header + ticker form one sticky block; the rail hangs off its height */}
@@ -1974,7 +2014,7 @@ const BruinMarket = () => {
                 </button>
 
                 <button
-                  onClick={() => { setShowProfile((v) => !v); setViewingUserProfile(null); }}
+                  onClick={() => fadeTo(() => { setShowProfile((v) => !v); setViewingUserProfile(null); })}
                   className={`flex h-9 items-center gap-2 border px-2 transition-colors md:px-2.5 ${
                     showProfile ? 'border-sun bg-sun/10 text-sun' : 'border-line text-ash hover:border-edge hover:text-chalk'
                   }`}
@@ -2047,12 +2087,16 @@ const BruinMarket = () => {
         </aside>
 
         {/* Main */}
-        <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
+        <main
+          className={`min-w-0 flex-1 px-4 py-6 transition-all duration-300 ease-out md:px-8 md:py-8 ${
+            leaving ? 'translate-y-1 opacity-0' : 'translate-y-0 opacity-100'
+          }`}
+        >
           {viewingUserProfile ? (
             <OtherUserProfile
               profileData={viewingUserProfile}
               token={token}
-              onClose={() => setViewingUserProfile(null)}
+              onClose={() => fadeTo(() => setViewingUserProfile(null))}
               onViewUserProfile={viewUserProfile}
             />
           ) : showProfile ? (
@@ -2101,11 +2145,11 @@ const BruinMarket = () => {
                 </div>
               )}
 
-              {loading ? (
+              {loading && posts.length === 0 ? (
                 <PostGrid>
                   {Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)}
                 </PostGrid>
-              ) : posts.length === 0 ? (
+              ) : !loading && posts.length === 0 ? (
                 <EmptyState
                   title="Nothing here yet"
                   body={
@@ -2124,10 +2168,16 @@ const BruinMarket = () => {
                   }
                 />
               ) : (
+                <div
+                  className={`transition-opacity duration-300 ease-out ${
+                    loading ? 'opacity-0' : 'opacity-100'
+                  }`}
+                >
                 <PostGrid>
-                  {posts.map((post) => (
+                  {posts.map((post, i) => (
                     <PostCard
                       key={post.id}
+                      index={i}
                       post={post}
                       onDelete={deletePost}
                       onEdit={() => setEditingPost(post)}
@@ -2139,6 +2189,7 @@ const BruinMarket = () => {
                     />
                   ))}
                 </PostGrid>
+                </div>
               )}
             </>
           )}
@@ -2177,7 +2228,10 @@ const BruinMarket = () => {
             {user && (
               <div className="grid grid-cols-3 gap-px border-t border-line bg-line">
                 <button
-                  onClick={() => { setShowProfile(true); setViewingUserProfile(null); setShowMobileSidebar(false); }}
+                  onClick={() => {
+                    setShowMobileSidebar(false);
+                    fadeTo(() => { setShowProfile(true); setViewingUserProfile(null); });
+                  }}
                   className="meta-hi flex flex-col items-center gap-1.5 bg-panel py-3.5 text-ash"
                 >
                   <User size={16} /> Profile

@@ -46,6 +46,7 @@ module.exports = {
           to: { opacity: '1', transform: 'none' },
         },
         shimmer: { to: { transform: 'translateX(100%)' } },
+        fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
         sweep: { from: { transform: 'scaleX(0)' }, to: { transform: 'scaleX(1)' } },
         blip: {
           '0%, 100%': { opacity: '1' },
@@ -57,6 +58,7 @@ module.exports = {
         },
       },
       animation: {
+        fadeIn: 'fadeIn 400ms ease both',
         rise: 'rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both',
         blip: 'blip 1.6s ease-in-out infinite',
         scan: 'scan 1.4s linear infinite',
